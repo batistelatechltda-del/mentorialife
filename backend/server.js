@@ -26,14 +26,24 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
-const HOST = process.env.HOST || "192.168.18.71";
+const HOST = process.env.HOST; // não usar IP fixo por padrão
 
-app.listen(PORT, HOST, () => {
-  logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
+const listenInfo = () =>
+  `🚀 Server is listening ${HOST ? `at http://${HOST}:${PORT}` : `on port ${PORT}`}
   🌍 Environment: ${process.env.NODE_ENV || "live"}
   ⚙️ Loaded Config from: ${envFile}
-  🧪 TEST_VAR: ${process.env.TEST_VAR}`);
-});
+  🧪 TEST_VAR: ${process.env.TEST_VAR}`;
+
+if (HOST) {
+  app.listen(PORT, HOST, () => {
+    logger.info(listenInfo());
+  });
+} else {
+  // Bind sem host — no Render isso funciona corretamente (escuta em 0.0.0.0)
+  app.listen(PORT, () => {
+    logger.info(listenInfo());
+  });
+}
 
 
 cron.schedule("*/1 * * * *", async () => {
