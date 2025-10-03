@@ -4,12 +4,6 @@ const openai = require("../../../configs/openAi");
 const { jsonrepair } = require("jsonrepair");
 const dayjs = require("dayjs");
 const chrono = require("chrono-node");
-const formatTextToParagraphs = (text) => {
-  return text
-    .split("\n") // Divide o texto em linhas
-    .map(line => `<p>${line}</p>`) // Envolva cada linha com <p>
-    .join(""); // Junta tudo de volta
-};
 
 async function create(req, res, next) {
   try {
@@ -21,8 +15,6 @@ async function create(req, res, next) {
     const isoNow = now.toISOString();
     const formattedTime = now.format("HH:mm");
     const readableDate = now.format("dddd, MMMM D, YYYY");
-    
-
 
     const systemPrompt = `  
 You are Mentor: Jarvis — a smart, confident, emotionally intelligent personal mentor who speaks like a real human (not a generic AI).
@@ -172,19 +164,17 @@ If no action needs to be taken (no reminder, goal, event, or journal), return th
       max_tokens: 1000,
     });
 
-    // Lógica para processar a resposta do GPT
-let rawContent = gptResponse.choices?.[0]?.message?.content || "";
+    let rawContent = gptResponse.choices?.[0]?.message?.content || "";
 
-// Aplica a formatação com parágrafos
-rawContent = formatTextToParagraphs(rawContent);
+// Apply paragraph breaks if not present
+rawContent = rawContent.replace(/\n/g, '\n\n'); // Adds an additional line break for paragraph separation
 
-// Verifica se a resposta não está em JSON válido
 if (!rawContent.trim().startsWith("{")) {
   await prisma.chat_message.create({
     data: {
       conversation_id: conversationId,
       sender: "BOT",
-      message: rawContent, // Mensagem com parágrafos
+      message: rawContent,
     },
   });
 
