@@ -27,7 +27,7 @@ import usePusher from "@/lib/pusher";
 interface Message {
   id: string;
   message: string;
-  sender: "USER" | "mentor";
+  sender: "USER" | "mentor" | "BOT";
   timestamp: Date;
 }
 
@@ -62,6 +62,18 @@ const Dashboard: React.FC<DashboardProps> = ({
   const pathname = usePathname();
   const { user }: any = useUser();
 
+   // Função para formatar o texto com parágrafos
+  const formatMessage = (text: string) => {
+    if (!text) return "";
+    // Protege o HTML básico
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safe = esc(text);
+
+    // Substitui quebras duplas de linha por <br/><br/> e simples por <br/>
+    return safe.replace(/\n{2,}/g, "<br/><br/>").replace(/\n/g, "<br/>");
+  };
+
   
 
   const scrollToBottom = () => {
@@ -69,11 +81,10 @@ const Dashboard: React.FC<DashboardProps> = ({
   };
 
   useEffect(() => {
-  // Scroll to bottom only after the messages are loaded for the first time
-  if (messages.length > 0) {
-    scrollToBottom();
-  }
-}, [messages.length]);  // Use `messages.length` as the dependency
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -94,14 +105,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     setIsLoading(true);
     try {
       const res = await API.getConversationMessage();
-      const formattedMessages = res.data.data.map(
-        (msg: any, index: number) => ({
-          id: `${index}`,
-          message: msg.message,
-          sender: msg.sender,
-          timestamp: new Date(msg.timestamp || Date.now()),
-        })
-      );
+      const formattedMessages = res.data.data.map((msg: any, index: number) => ({
+        id: `${index}`,
+        message: formatMessage(msg.message),  // Formatar aqui
+        sender: msg.sender === "USER" ? "USER" : "BOT", 
+        timestamp: new Date(msg.timestamp || Date.now()),
+      }));
       setMessages(formattedMessages);
     } catch (error) {
     } finally {
@@ -130,7 +139,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     alert(`${title}: ${message}`);
   };
 
-  const handleSendMessage = async () => {
+   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -151,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       setTimeout(() => {
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
-          message: response.data.reply || "I'm here to help!",
+          message: formatMessage(response.data.reply || "I'm here to help!"), // Formatando a resposta
           sender: "mentor",
           timestamp: new Date(),
         };
@@ -405,7 +414,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             : "justify-start"
                         }`}
                       >
-                        {message.sender === "mentor" && (
+                        {(message.sender === "mentor" || message.sender === "BOT") && (
                           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center mt-1 flex-shrink-0 shadow-lg shadow-purple-500/30 border border-white/20">
                             <Bot className="h-4 w-4 text-white" />
                           </div>
