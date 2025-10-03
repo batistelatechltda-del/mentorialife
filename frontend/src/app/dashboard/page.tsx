@@ -1,5 +1,9 @@
+// page.tsx - Componente de Servidor
+
+import { cookies } from "next/headers"; // Usando cookies no servidor
 import Dashboard from "@/components/dashboard/home";
-import { cookies } from "next/headers";
+
+// Função assíncrona para obter a conversa
 async function getConversation() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
@@ -9,18 +13,19 @@ async function getConversation() {
       `${process.env.NEXT_PUBLIC_BASE_URL_SERVER}/api/client/conversation/get/all`,
       {
         headers: {
-          authorization: `${token}`,
+          authorization: `${token}`, // Envia o token de autenticação
         },
       }
     );
-
     const data = await res.json();
-    return data?.data == null ? [] : data?.data || [];
+    return data?.data || [];
   } catch (err) {
     console.log(err);
     return [];
   }
 }
+
+// Função assíncrona para obter os dados do sidebar
 async function getSidebarData() {
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
@@ -34,19 +39,20 @@ async function getSidebarData() {
         },
       }
     );
-
     const data = await res.json();
-    return data?.data == null ? {} : data?.data || {};
+    return data?.data || {};
   } catch (err) {
     console.log(err);
     return [];
   }
 }
 
-async function page() {
-  const conversation: any = await getConversation();
-  const sidebarData: any = await getSidebarData();
-  return <Dashboard conversation={conversation} sidebarData={sidebarData} />;
-}
+// Componente de Servidor para a Página
+const Page = async () => {
+  const conversation = await getConversation(); // Busca a conversa
+  const sidebarData = await getSidebarData(); // Busca os dados do sidebar
 
-export default page;
+  return <Dashboard conversation={conversation} sidebarData={sidebarData} />;
+};
+
+export default Page;
