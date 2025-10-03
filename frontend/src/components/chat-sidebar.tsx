@@ -2,6 +2,7 @@
 
 import type React from "react";
 
+
 import {
   Plus,
   MessageSquare,
@@ -10,6 +11,7 @@ import {
   Edit3,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import Chat from "./Chat";  // Correto
 import Link from "next/link";
 
 interface Chat {
@@ -34,6 +36,15 @@ export function ChatSidebar({
   onChatDelete,
   onChatRename,
 }: ChatSidebarProps) {
+
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+
+  const handleChatSelect = (chatId: string) => {
+    setSelectedChatId(chatId);  // Atualiza o chat selecionado
+    onChatSelect?.(chatId);  // Chama a função de seleção (caso haja)
+  };
+  
+  
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -162,6 +173,11 @@ export function ChatSidebar({
                       <span className="flex-1 truncate font-medium">
                         {chat.title}
                       </span>
+                       <div>
+
+      {/* Renderiza o componente Chat quando um chat é selecionado */}
+      {selectedChatId && <Chat chatId={selectedChatId} />}
+    </div>
 
                       <div className="relative" ref={dropdownRef}>
                         <button
@@ -212,6 +228,7 @@ export function ChatSidebar({
           </div>
         )}
       </div>
+      
     </div>
   );
 }
