@@ -12,7 +12,7 @@ export default function usePusher(
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(true); // Usando `mountedRef` para controlar o ciclo de vida
 
   const isConnectionValid = () => {
     if (!pusherRef.current || !pusherRef.current.connection) return false;
@@ -28,8 +28,7 @@ export default function usePusher(
   };
 
   useEffect(() => {
-    mountedRef.current = true;
-
+    // Evitar múltiplas conexões e atualizações enquanto o componente está sendo montado
     if (!channelName || !eventName || !callback) return;
 
     const initPusher = () => {
@@ -54,7 +53,7 @@ export default function usePusher(
         pusherInstance.connection.bind("connected", () => {
           if (!mountedRef.current) return;
 
-          setIsConnected(true);
+          setIsConnected(true); // Atualiza a conexão apenas se o componente estiver montado
           setError(null);
 
           try {
@@ -136,10 +135,10 @@ export default function usePusher(
     initPusher();
 
     return () => {
-      mountedRef.current = false;
+      mountedRef.current = false; // Marca o componente como desmontado
       cleanupConnection();
     };
-  }, [channelName, eventName, callback]);
+  }, [channelName, eventName, callback]); // Garantir que a dependência está estável
 
   return {
     isConnected,
@@ -222,26 +221,4 @@ export default function usePusher(
       cleanAndReconnect();
     },
   };
-}
-
-export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia(query);
-
-    setMatches(media.matches);
-
-    const listener = (e: MediaQueryListEvent) => {
-      setMatches(e.matches);
-    };
-
-    media.addEventListener("change", listener);
-
-    return () => {
-      media.removeEventListener("change", listener);
-    };
-  }, [query]);
-
-  return matches;
 }
