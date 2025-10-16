@@ -1,10 +1,17 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Check, Calendar, Trash2 } from "lucide-react"; // Ícones
+import { ArrowLeft, Plus, Check, Calendar, Trash2, Heart, Target } from "lucide-react";
 import { API } from "@/services";
 import AddGoalModal from "./form/goal-form";
 import { motion } from "framer-motion"; // Para animação
+
+// Definindo as categorias com suas cores e ícones
+const CATEGORY_STYLES = {
+  Health: { color: 'green', icon: <Heart /> }, // Ícone de saúde
+  WellBeing: { color: 'blue', icon: <Target /> }, // Ícone de bem-estar
+  // Adicione mais categorias conforme necessário
+};
 
 interface Goal {
   id: string;
@@ -15,6 +22,7 @@ interface Goal {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  category: keyof typeof CATEGORY_STYLES; // Campo de categoria
 }
 
 const GoalsPage = ({ initialGoals }: any) => {
@@ -175,11 +183,13 @@ const GoalsPage = ({ initialGoals }: any) => {
       ? "75-100"
       : "100";
 
+    // Armazenar a faixa de progresso e garantir que a frase mude
     const lastRange = localStorage.getItem("lastRange");
     if (lastRange !== range) {
       const randomMessage =
         messages[range][Math.floor(Math.random() * messages[range].length)];
       
+      // Armazenar a nova faixa e a mensagem no localStorage
       localStorage.setItem("motivationalMessage", randomMessage);
       localStorage.setItem("lastRange", range);
     }
@@ -323,7 +333,9 @@ const GoalsPage = ({ initialGoals }: any) => {
                           }
                         >
                           {formatDate(goal.due_date)}
-                          {isOverdue(goal.due_date) && !goal.is_completed && " (Overdue)"}
+                          {isOverdue(goal.due_date) &&
+                            !goal.is_completed &&
+                            " (Overdue)"}
                         </span>
                       </div>
                     </div>
