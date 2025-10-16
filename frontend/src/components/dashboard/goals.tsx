@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Check, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Check, Calendar, Trash2 } from "lucide-react"; // Ícones
 import { API } from "@/services";
 import AddGoalModal from "./form/goal-form";
+import { motion } from "framer-motion"; // Para animação
 
 interface Goal {
   id: string;
@@ -50,7 +51,7 @@ const GoalsPage = ({ initialGoals }: any) => {
     setIsModalOpen(true);
   };
 
-  const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleDeleteGoal = async (goalId: string) => {
     await API.deleteGoal(goalId);
@@ -114,6 +115,78 @@ const GoalsPage = ({ initialGoals }: any) => {
     }
   }, []);
 
+  // Função para gerar a mensagem motivacional baseada no progresso
+  const getMotivationalMessage = (completionRate: number) => {
+    const messages = {
+      "0-25": [
+        "Comece agora e faça acontecer! 💥",
+        "O primeiro passo já foi dado, agora é seguir em frente! 🚀",
+        "Cada início é um passo para o sucesso. Vamos lá! 💪",
+        "Não pare! O começo é sempre o mais difícil! 🔥",
+        "Você começou com o pé direito. Agora, só falta continuar! ⚡",
+        "A jornada começa agora. Vá em frente! 🌟",
+        "Está só começando, mas já está indo muito bem! 💥",
+      ],
+      "25-50": [
+        "Você está indo bem! Mantenha o foco! 🔥",
+        "A metade do caminho está feita. Não pare agora! 💯",
+        "Já percorreu uma boa parte! Continue com tudo! 🚀",
+        "Quase lá! Seu progresso está impressionante! 🙌",
+        "Excelente progresso! Agora acelere mais! 🔥",
+        "Nada pode parar você agora. Continue assim! 💪",
+        "Você está avançando muito bem! O objetivo está próximo! 🌟",
+      ],
+      "50-75": [
+        "Bom progresso! Vamos acelerar! 🚀",
+        "Metade do caminho foi percorrida, agora é só dar o gás! 💨",
+        "Está quase lá! Acelere e vá com tudo! 💪",
+        "Você está indo muito bem, agora vamos para a reta final! 🏁",
+        "Seu progresso é impressionante! Vamos acelerar ainda mais! 💥",
+        "Já passou da metade, agora é só aumentar a velocidade! 🔥",
+        "A metade do trabalho está feito, agora só falta dar o toque final! 🚀",
+      ],
+      "75-100": [
+        "Quase lá, continue assim! 💪",
+        "O fim está próximo! Só mais um empurrão! 🚀",
+        "Você está quase lá, não pare agora! 💥",
+        "Está na reta final! Só falta um último esforço! 💪",
+        "Continue assim, você está prestes a alcançar seu objetivo! 🌟",
+        "Faltam poucos passos! Vai com tudo! 💯",
+        "Quase lá! Agora é só dar aquele último gás! 🏆",
+      ],
+      "100": [
+        "Mandou bem, rei 🏆",
+        "Você conseguiu! Parabéns! 🎉",
+        "Objetivo alcançado! Você é incrível! 💪",
+        "Meta cumprida! Agora, comemore! 🥳",
+        "Fez acontecer! Parabéns pelo esforço e sucesso! 🌟",
+        "Você conquistou tudo! Muito bem! 🔥",
+        "Objetivo cumprido com sucesso! Você é uma lenda! 🏆",
+      ],
+    };
+
+    const range = completionRate <= 25
+      ? "0-25"
+      : completionRate <= 50
+      ? "25-50"
+      : completionRate <= 75
+      ? "50-75"
+      : completionRate < 100
+      ? "75-100"
+      : "100";
+
+    const lastRange = localStorage.getItem("lastRange");
+    if (lastRange !== range) {
+      const randomMessage =
+        messages[range][Math.floor(Math.random() * messages[range].length)];
+      
+      localStorage.setItem("motivationalMessage", randomMessage);
+      localStorage.setItem("lastRange", range);
+    }
+
+    return localStorage.getItem("motivationalMessage") || "Continue assim!";
+  };
+
   return (
     <div className="min-h-screen bg-black from-slate-950 bg-gradient-to-b">
       <div
@@ -176,7 +249,29 @@ const GoalsPage = ({ initialGoals }: any) => {
           </div>
         </div>
 
+        {/* Barra de Progresso Personalizada */}
         <div className="space-y-4">
+          <div className="text-center mb-6">
+            <motion.div
+              className="bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden"
+              style={{ width: "100%" }}
+              initial={{ width: 0 }}
+              animate={{ width: `${stats.completionRate}%` }}
+            >
+              <div
+                className="bg-green-500 h-6"
+                style={{
+                  width: `${stats.completionRate}%`,
+                  transition: "width 0.5s ease-in-out",
+                }}
+              />
+            </motion.div>
+            <p className="mt-1 text-lg text-green-600 dark:text-green-400">
+              {getMotivationalMessage(stats.completionRate)}
+            </p>
+          </div>
+
+          {/* Renderizando as Metas */}
           {goals.length > 0 ? (
             goals.map((goal) => (
               <div
@@ -228,9 +323,7 @@ const GoalsPage = ({ initialGoals }: any) => {
                           }
                         >
                           {formatDate(goal.due_date)}
-                          {isOverdue(goal.due_date) &&
-                            !goal.is_completed &&
-                            " (Overdue)"}
+                          {isOverdue(goal.due_date) && !goal.is_completed && " (Overdue)"}
                         </span>
                       </div>
                     </div>
