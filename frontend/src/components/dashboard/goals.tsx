@@ -1,9 +1,20 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Check, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Check, Calendar, Trash2, Heart, Target } from "lucide-react"; // Ícones
 import { API } from "@/services";
 import AddGoalModal from "./form/goal-form";
+import { motion } from "framer-motion"; // Para animação
+
+// Definindo as categorias com suas cores e ícones
+const CATEGORY_STYLES = {
+  Health: { color: 'green', icon: <Heart /> }, // Ícone de saúde
+  WellBeing: { color: 'blue', icon: <Target /> }, // Ícone de bem-estar
+  "Saúde Mental": { color: 'purple', icon: <Target /> }, // Ícone de saúde mental
+  Saúde: { color: 'orange', icon: <Target /> }, // Ícone de saúde
+  Desenvolvimento: { color: 'red', icon: <Target /> }, // Ícone de desenvolvimento
+  // Adicione mais categorias conforme necessário
+};
 
 interface Goal {
   id: string;
@@ -14,6 +25,7 @@ interface Goal {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  category: keyof typeof CATEGORY_STYLES; // Campo de categoria
 }
 
 const GoalsPage = ({ initialGoals }: any) => {
@@ -50,7 +62,7 @@ const GoalsPage = ({ initialGoals }: any) => {
     setIsModalOpen(true);
   };
 
-  const [isModalOpen, setIsModalOpen] = useState(false); 
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleDeleteGoal = async (goalId: string) => {
     await API.deleteGoal(goalId);
@@ -114,6 +126,80 @@ const GoalsPage = ({ initialGoals }: any) => {
     }
   }, []);
 
+  // Função para gerar a mensagem motivacional baseada no progresso
+  const getMotivationalMessage = (completionRate: number) => {
+    const messages = {
+      "0-25": [
+        "Comece agora e faça acontecer! 💥",
+        "O primeiro passo já foi dado, agora é seguir em frente! 🚀",
+        "Cada início é um passo para o sucesso. Vamos lá! 💪",
+        "Não pare! O começo é sempre o mais difícil! 🔥",
+        "Você começou com o pé direito. Agora, só falta continuar! ⚡",
+        "A jornada começa agora. Vá em frente! 🌟",
+        "Está só começando, mas já está indo muito bem! 💥",
+      ],
+      "25-50": [
+        "Você está indo bem! Mantenha o foco! 🔥",
+        "A metade do caminho está feita. Não pare agora! 💯",
+        "Já percorreu uma boa parte! Continue com tudo! 🚀",
+        "Quase lá! Seu progresso está impressionante! 🙌",
+        "Excelente progresso! Agora acelere mais! 🔥",
+        "Nada pode parar você agora. Continue assim! 💪",
+        "Você está avançando muito bem! O objetivo está próximo! 🌟",
+      ],
+      "50-75": [
+        "Bom progresso! Vamos acelerar! 🚀",
+        "Metade do caminho foi percorrida, agora é só dar o gás! 💨",
+        "Está quase lá! Acelere e vá com tudo! 💪",
+        "Você está indo muito bem, agora vamos para a reta final! 🏁",
+        "Seu progresso é impressionante! Vamos acelerar ainda mais! 💥",
+        "Já passou da metade, agora é só aumentar a velocidade! 🔥",
+        "A metade do trabalho está feito, agora só falta dar o toque final! 🚀",
+      ],
+      "75-100": [
+        "Quase lá, continue assim! 💪",
+        "O fim está próximo! Só mais um empurrão! 🚀",
+        "Você está quase lá, não pare agora! 💥",
+        "Está na reta final! Só falta um último esforço! 💪",
+        "Continue assim, você está prestes a alcançar seu objetivo! 🌟",
+        "Faltam poucos passos! Vai com tudo! 💯",
+        "Quase lá! Agora é só dar aquele último gás! 🏆",
+      ],
+      "100": [
+        "Mandou bem, rei 🏆",
+        "Você conseguiu! Parabéns! 🎉",
+        "Objetivo alcançado! Você é incrível! 💪",
+        "Meta cumprida! Agora, comemore! 🥳",
+        "Fez acontecer! Parabéns pelo esforço e sucesso! 🌟",
+        "Você conquistou tudo! Muito bem! 🔥",
+        "Objetivo cumprido com sucesso! Você é uma lenda! 🏆",
+      ],
+    };
+
+    const range = completionRate <= 25
+      ? "0-25"
+      : completionRate <= 50
+      ? "25-50"
+      : completionRate <= 75
+      ? "50-75"
+      : completionRate < 100
+      ? "75-100"
+      : "100";
+
+    // Armazenar a faixa de progresso e garantir que a frase mude
+    const lastRange = localStorage.getItem("lastRange");
+    if (lastRange !== range) {
+      const randomMessage =
+        messages[range][Math.floor(Math.random() * messages[range].length)];
+      
+      // Armazenar a nova faixa e a mensagem no localStorage
+      localStorage.setItem("motivationalMessage", randomMessage);
+      localStorage.setItem("lastRange", range);
+    }
+
+    return localStorage.getItem("motivationalMessage") || "Continue assim!";
+  };
+
   return (
     <div className="min-h-screen bg-black from-slate-950 bg-gradient-to-b">
       <div
@@ -176,91 +262,115 @@ const GoalsPage = ({ initialGoals }: any) => {
           </div>
         </div>
 
+        {/* Barra de Progresso Personalizada */}
         <div className="space-y-4">
-          {goals.length > 0 ? (
-            goals.map((goal) => (
+          <div className="text-center mb-6">
+            <motion.div
+              className="bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden"
+              style={{ width: "100%" }}
+              initial={{ width: 0 }}
+              animate={{ width: `${stats.completionRate}%` }}
+            >
               <div
-                key={goal.id}
-                className={`bg-white dark:bg-gray-800 p-4 rounded shadow border-l-4 ${
-                  goal.is_completed
-                    ? "border-green-500"
-                    : isOverdue(goal.due_date)
-                    ? "border-red-500"
-                    : "border-blue-500"
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <button
-                      onClick={() =>
-                        handleToggleGoalCompletion(goal.id, goal.is_completed)
-                      }
-                      className={`mt-1 w-5 h-5 rounded-full cursor-pointer flex-shrink-0 flex items-center justify-center border ${
-                        goal.is_completed
-                          ? "bg-green-500 border-green-500 text-white"
-                          : "border-gray-400 dark:border-gray-500"
-                      }`}
-                    >
-                      {goal.is_completed && <Check size={12} />}
-                    </button>
-                    <div>
-                      <h3
-                        className={`font-medium ${
-                          goal.is_completed
-                            ? "text-gray-500 dark:text-gray-400 line-through"
-                            : "text-gray-900 dark:text-white"
-                        }`}
-                      >
-                        {goal.title}
-                      </h3>
-                      {goal.description && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                          {goal.description}
-                        </p>
-                      )}
-                      <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        <Calendar size={12} className="mr-1" />
-                        <span
-                          className={
-                            isOverdue(goal.due_date) && !goal.is_completed
-                              ? "text-red-500 dark:text-red-400"
-                              : ""
-                          }
-                        >
-                          {formatDate(goal.due_date)}
-                          {isOverdue(goal.due_date) &&
-                            !goal.is_completed &&
-                            " (Overdue)"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteGoal(goal.id)}
-                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12 bg-white dark:bg-gray-800 rounded shadow">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                No goals yet
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                Start by adding your first goal.
+                className="bg-green-500 h-6"
+                style={{
+                  width: `${stats.completionRate}%`,
+                  transition: "width 0.5s ease-in-out",
+                }}
+              />
+            </motion.div>
+            <p className="mt-1 text-lg text-green-600 dark:text-green-400">
+              {getMotivationalMessage(stats.completionRate)}
+            </p>
+          </div>
+
+          {/* Renderizando as Metas */}
+{goals.length > 0 ? (
+  goals.map((goal) => (
+    <div
+      key={goal.id}
+      className={`bg-white dark:bg-gray-800 p-4 rounded shadow border-l-4 ${
+        goal.is_completed
+          ? "border-green-500"
+          : isOverdue(goal.due_date)
+          ? "border-red-500"
+          : "border-blue-500"
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          {/* Exibindo o ícone da categoria */}
+          <div className="flex-shrink-0">
+            {CATEGORY_STYLES[goal.category]?.icon} {/* Renderiza o ícone da categoria */}
+          </div>
+          <button
+            onClick={() =>
+              handleToggleGoalCompletion(goal.id, goal.is_completed)
+            }
+            className={`mt-1 w-5 h-5 rounded-full cursor-pointer flex-shrink-0 flex items-center justify-center border ${
+              goal.is_completed
+                ? "bg-green-500 border-green-500 text-white"
+                : "border-gray-400 dark:border-gray-500"
+            }`}
+          >
+            {goal.is_completed && <Check size={12} />}
+          </button>
+          <div>
+            <h3
+              className={`font-medium ${
+                goal.is_completed
+                  ? "text-gray-500 dark:text-gray-400 line-through"
+                  : "text-gray-900 dark:text-white"
+              }`}
+            >
+              {goal.title}
+            </h3>
+            {goal.description && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {goal.description}
               </p>
-              <button
-                onClick={handleAddGoal}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded"
+            )}
+            <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
+              <Calendar size={12} className="mr-1" />
+              <span
+                className={
+                  isOverdue(goal.due_date) && !goal.is_completed
+                    ? "text-red-500 dark:text-red-400"
+                    : ""
+                }
               >
-                <Plus size={16} />
-                Add Goal
-              </button>
+                {formatDate(goal.due_date)}
+                {isOverdue(goal.due_date) && !goal.is_completed && " (Overdue)"}
+              </span>
             </div>
-          )}
+          </div>
+        </div>
+        <button
+          onClick={() => handleDeleteGoal(goal.id)}
+          className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+    </div>
+  ))
+) : (
+  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded shadow">
+    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+      No goals yet
+    </h3>
+    <p className="text-gray-500 dark:text-gray-400 mb-4">
+      Start by adding your first goal.
+    </p>
+    <button
+      onClick={handleAddGoal}
+      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded"
+    >
+      <Plus size={16} />
+      Add Goal
+    </button>
+  </div>
+)}
         </div>
       </main>
       <AddGoalModal
