@@ -322,7 +322,7 @@ const sendReminderMessage = async (reminder) => {
 // Agendando o envio de lembretes a cada 1 hora
 setInterval(async () => {
   await checkAndSendReminders(); // Verifica e envia lembretes a cada 1 hora
-}, 1000 * 20); // A cada 1 hora (60 minutos)
+}, 1000 * 1000); // A cada 1 hora (60 minutos)
 
 // Agendando a verificação de inatividade a cada 2 horas
 setInterval(async () => {
@@ -330,7 +330,7 @@ setInterval(async () => {
   users.forEach(async (user) => {
     await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
   });
-}, 1000 * 10); // A cada 2 horas (120 minutos)
+}, 1000 * 1000); // A cada 2 horas (120 minutos)
 
 
     const pastMessages = await prisma.chat_message.findMany({
