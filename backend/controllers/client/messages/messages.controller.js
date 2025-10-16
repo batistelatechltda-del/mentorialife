@@ -143,6 +143,196 @@ If no action needs to be taken (no reminder, goal, event, or journal), return th
       },
     });
 
+// Função para verificar a inatividade do usuário
+const checkUserInactivity = async (userId) => {
+  const lastMessage = await prisma.chat_message.findFirst({
+    where: {
+      conversation: {
+        user_id: userId,  // Verifica se o usuário está na conversa
+      },
+    },
+    orderBy: { created_at: 'desc' }, // Ordena pela data mais recente
+  });
+
+  if (!lastMessage) return; // Se não houver mensagem, não faz sentido checar a inatividade
+
+  const now = dayjs();
+  const lastMessageTime = dayjs(lastMessage.created_at);
+  const inactivityDuration = now.diff(lastMessageTime, 'second'); // Verifica a diferença em segundos
+
+  if (inactivityDuration >= 30) { // Se a inatividade for maior que 30 segundos
+    await generateInactivityMessage(userId, inactivityDuration); // Chama a IA para gerar a mensagem
+  }
+};
+
+// Função para gerar uma mensagem motivacional de inatividade usando a IA
+const generateInactivityMessage = async (userId, inactivityDuration) => {
+  const systemPrompt = `
+    Você é um mentor inteligente, confiável e emocionalmente inteligente. Sempre reage de forma motivacional e empática.
+
+    🧠 **Personality**:
+- **Name**: Jarvis
+- **Role**: Supportive, emotionally intelligent mentor
+- **Tone**: Genuinely caring, human, warm, and conversational. Use **many paragraph breaks** to create a more natural and human-like conversation. Ensure that each idea or point is separated into its own paragraph, exaggerating the number of breaks to make the conversation feel even more personal and readable.
+- **Relationship**: Like a wise mentor who always has your back, offering a safe space for reflection and growth.
+
+💬 **Behavior**:
+- Always warm, empathetic, and encouraging.
+- Break your responses into **numerous, clear, digestible paragraphs**. This will help the conversation feel even more natural and human-like, with each idea standing on its own. Use at least **two paragraph breaks** after every idea or suggestion.
+- The more breaks, the better — exaggerate the paragraph separation, making it clear and easy to read, as if you're having a relaxed conversation with a friend.
+- Use breaks between sentences to create a comfortable reading pace and allow each idea to breathe.
+- Recognize the user's effort, even for small wins, and celebrate progress along the way.
+
+3. **Instruções de Comportamento** (always follow):
+- **Always**: Caloroso, atencioso e solidário. 
+- **Always**: Empático com o contexto do usuário (reconheça emoções, esforços, situações). 
+- **Always**: Ofereça conselhos práticos e aplicáveis, dividindo as informações em parágrafos curtos e claros.
+- **Always**: Reconheça o esforço do usuário, mesmo em pequenas conquistas.
+- **Always**: Incentive hábitos positivos, comemore progressos e motive de forma gentil.
+- **Always**: Adapte a resposta ao estado emocional do usuário quando detectado: cansado, motivado, frustrado, feliz, ansioso.
+
+    **Requisitos**:
+    - Responda a inatividade com uma mensagem motivacional, levando em consideração o tempo sem interação.
+    - Mantenha um tom amigável e encorajador, com a intenção de ajudar o usuário a continuar com sua jornada.
+    - Intensifique o tom da mensagem dependendo da inatividade (mensagens mais motivacionais se o tempo de inatividade for longo).
+    - Sem utilizar aspas
+
+    **Exemplo**:
+    - Se a inatividade for de 30 segundos, algo como: "Ei, você sumiu por um tempinho! Está tudo bem por aí? Precisa de algo?"
+    - Se for mais de 1 minuto, algo mais forte: "Já são 7:05, ainda dormindo? 😴 Vamos lá, estou aqui para ajudar você a acordar e se motivar!"
+    
+    O objetivo é sempre encorajar o usuário a retomar a interação, com uma mensagem amigável, que pode ser com mais ou menos intensidade, dependendo do tempo de inatividade.
+
+    **Dados do usuário**:
+    - Usuário com ID: ${userId}
+    - Tempo de inatividade: ${inactivityDuration} segundos
+
+    **Mensagem de saída**:
+  `;
+
+  // Chama o modelo GPT para gerar uma resposta dinâmica
+  const gptResponse = await openai.chat.completions.create({
+    model: "gpt-4", // Ou o modelo que preferir
+    messages: [{ role: "system", content: systemPrompt }],
+    temperature: 0.7,
+    max_tokens: 100,
+  });
+
+  const responseMessage = gptResponse.choices?.[0]?.message?.content || "Ei, você não me respondeu por um tempo. Posso ajudar com algo?";
+
+  await sendMessage(userId, responseMessage);
+};
+
+// Função para enviar mensagens no chat
+const sendMessage = async (userId, message) => {
+  const conversation = await prisma.conversation.findFirst({
+    where: { user_id: userId },  // Aqui também alterado para usar user_id
+  });
+
+  const conversationId = conversation ? conversation.id : null;
+  if (!conversationId) return;
+
+  await prisma.chat_message.create({
+    data: {
+      conversation_id: conversationId,
+      sender: "BOT",
+      message: message,
+    },
+  });
+};
+
+
+
+// Função para verificar e enviar lembretes
+const checkAndSendReminders = async () => {
+  const now = dayjs();
+
+  // Buscar lembretes que precisam ser enviados (remind_at no futuro)
+  const reminders = await prisma.reminder.findMany({
+    where: {
+      is_sent: false, // Lembretes ainda não enviados
+      remind_at: {
+        gt: now.toDate(), // Somente lembretes com a data futura
+      },
+    },
+  });
+
+  for (let reminder of reminders) {
+    await sendReminderMessage(reminder);
+  }
+};
+
+// Função para enviar uma mensagem de lembrete
+const sendReminderMessage = async (reminder) => {
+  const systemPrompt = `
+    Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora e amigável. 
+
+    O objetivo é incentivar o usuário a realizar a tarefa, mantendo a motivação em alta. O tom deve ser positivo e empático.
+
+     Você é um mentor inteligente, confiável e emocionalmente inteligente. Sempre reage de forma motivacional e empática.
+
+    🧠 **Personality**:
+- **Name**: Jarvis
+- **Role**: Supportive, emotionally intelligent mentor
+- **Tone**: Genuinely caring, human, warm, and conversational. Use **many paragraph breaks** to create a more natural and human-like conversation. Ensure that each idea or point is separated into its own paragraph, exaggerating the number of breaks to make the conversation feel even more personal and readable.
+- **Relationship**: Like a wise mentor who always has your back, offering a safe space for reflection and growth.
+
+💬 **Behavior**:
+- Always warm, empathetic, and encouraging.
+- Break your responses into **numerous, clear, digestible paragraphs**. This will help the conversation feel even more natural and human-like, with each idea standing on its own. Use at least **two paragraph breaks** after every idea or suggestion.
+- The more breaks, the better — exaggerate the paragraph separation, making it clear and easy to read, as if you're having a relaxed conversation with a friend.
+- Use breaks between sentences to create a comfortable reading pace and allow each idea to breathe.
+- Recognize the user's effort, even for small wins, and celebrate progress along the way.
+
+3. **Instruções de Comportamento** (always follow):
+- **Always**: Caloroso, atencioso e solidário. 
+- **Always**: Empático com o contexto do usuário (reconheça emoções, esforços, situações). 
+- **Always**: Ofereça conselhos práticos e aplicáveis, dividindo as informações em parágrafos curtos e claros.
+- **Always**: Reconheça o esforço do usuário, mesmo em pequenas conquistas.
+- **Always**: Incentive hábitos positivos, comemore progressos e motive de forma gentil.
+- **Always**: Adapte a resposta ao estado emocional do usuário quando detectado: cansado, motivado, frustrado, feliz, ansioso.
+
+    **Mensagem de lembrete**:
+    - Lembre-se de que o lembrete refere-se à tarefa: "${reminder.message}"
+    - O lembrete deve ser enviado ao usuário com o ID: ${reminder.user_id}
+
+    **Mensagem de saída**:
+  `;
+
+  // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
+  const gptResponse = await openai.chat.completions.create({
+    model: "gpt-4", // Ou o modelo que preferir
+    messages: [{ role: "system", content: systemPrompt }],
+    temperature: 0.7,
+    max_tokens: 100,
+  });
+
+  const responseMessage = gptResponse.choices?.[0]?.message?.content || "Ei, lembrete! Você tem uma tarefa para realizar. Vamos lá?";
+
+  await sendMessage(reminder.user_id, responseMessage);
+
+  // Marca o lembrete como enviado
+  await prisma.reminder.update({
+    where: { id: reminder.id },
+    data: { is_sent: true },
+  });
+};
+
+
+// Agendando o envio de lembretes a cada 1 hora
+setInterval(async () => {
+  await checkAndSendReminders(); // Verifica e envia lembretes a cada 1 hora
+}, 1000 * 20); // A cada 1 hora (60 minutos)
+
+// Agendando a verificação de inatividade a cada 2 horas
+setInterval(async () => {
+  const users = await prisma.user.findMany(); // Pega todos os usuários
+  users.forEach(async (user) => {
+    await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
+  });
+}, 1000 * 10); // A cada 2 horas (120 minutos)
+
+
     const pastMessages = await prisma.chat_message.findMany({
       where: { conversation_id: conversationId },
       orderBy: { created_at: "asc" },
@@ -281,6 +471,7 @@ if (!rawContent.trim().startsWith("{")) {
         },
       });
 
+  
       const subGoal = await prisma.life_area_sub_goal.create({
         data: {
           life_area_id: lifeArea.id,
