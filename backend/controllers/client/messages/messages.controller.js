@@ -151,7 +151,7 @@ const createReminder = async (req, res, next) => {
 
     const now = dayjs();  // Hora atual
 
-    // Criando o lembrete diretamente com a mensagem fornecida
+    // Criando o lembrete diretamente com a mensagem fornecida (sem incluir o intervalo na mensagem)
     const reminder = await prisma.reminder.create({
       data: {
         user_id: userId,
@@ -171,8 +171,6 @@ const createReminder = async (req, res, next) => {
   }
 };
 
-
-
 const checkAndSendReminders = async () => {
   const now = dayjs();  // Hora atual
 
@@ -190,6 +188,7 @@ const checkAndSendReminders = async () => {
   for (let reminder of reminders) {
     const reminderTime = dayjs(reminder.remind_at);  // Garantindo que "reminderTime" é um objeto dayjs
     
+    // Definir o sistema de critérios para o intervalo com base na lógica
     const systemPrompt = `
 Descrição do evento: "${reminder.message}"
 Hora do evento: "${reminder.remind_at}"
@@ -200,40 +199,24 @@ Aqui estão os critérios detalhados para determinar o intervalo para o **aviso 
 
 1. **Deslocamento (ex: ida ao médico, viagem)**:
    - Se o evento envolver deslocamento ou atividade fora de casa (como ida ao médico ou viagem), o intervalo deve ser **1 hora antes**. Isso se aplica a compromissos que exigem tempo de deslocamento.
-   - **Aviso antecipado**: O lembrete deve ser enviado 1 hora antes para que o usuário se prepare com antecedência.
-
+   
 2. **Tarefa Simples ou Cotidiana (ex: almoço, tarefa em casa)**:
    - Se o evento for uma tarefa simples e cotidiana (como almoçar ou realizar uma tarefa em casa), defina o intervalo entre **5 a 10 minutos antes**. Isso ajuda a lembrar com antecedência, sem ser excessivamente antecipado.
-   - **Aviso antecipado**: Um intervalo de 5 a 10 minutos garante que o usuário tenha tempo suficiente para realizar a tarefa.
-
+   
 3. **Reuniões ou Compromissos Importantes (ex: reunião de trabalho, consulta médica)**:
    - Para eventos mais formais, como reuniões de trabalho ou consultas médicas, o intervalo ideal deve ser **entre 30 a 60 minutos antes**. Isso garante que a pessoa tenha tempo suficiente para se preparar.
-   - **Aviso antecipado**: O lembrete deve ser enviado com pelo menos 30 minutos de antecedência para eventos mais significativos.
-
+   
 4. **Eventos de Última Hora ou Urgentes (ex: reunião urgente, consulta médica imprevista)**:
    - Para eventos de última hora ou urgentes, o intervalo deve ser **10 minutos ou menos**, dependendo da proximidade do evento. Eventos como uma reunião urgente ou consulta médica de última hora exigem um lembrete imediato.
-   - **Aviso antecipado**: O aviso deve ser dado com 10 minutos de antecedência, já que são eventos de alta urgência.
-
+   
 5. **Eventos em Menos de 30 Minutos**:
    - Se o evento ocorrer dentro de **menos de 30 minutos**, priorize um intervalo de **5 a 10 minutos antes**. Isso garante que o lembrete seja dado de forma suficiente, mas ainda relevante para o evento iminente.
-   - **Aviso antecipado**: Se o evento ocorrer em breve (menos de 30 minutos), o intervalo de 5 a 10 minutos antes ajudará a garantir que o usuário receba o aviso no momento adequado.
-
-6. **Evitar Intervalos Superiores a 1 Hora**:
-   - Evite usar intervalos superiores a **1 hora**, a menos que o evento envolva deslocamento ou seja algo urgente. Para a maioria dos compromissos, 1 hora é o máximo necessário para lembretes antecipados.
-   - **Aviso antecipado**: Intervalos superiores a 1 hora devem ser evitados, a menos que o evento realmente exija um aviso mais antecipado, como no caso de deslocamento ou eventos urgentes.
 
 **Respostas esperadas**:
 - "1 hora" — Para compromissos com deslocamento ou eventos significativos.
 - "10 minutos" — Para eventos urgentes ou de última hora.
 - "5 minutos" — Para tarefas simples ou eventos iminentes.
 - "30 minutos" — Para compromissos formais ou importantes.
-
-Por favor, considere a proximidade do evento, a urgência e o tipo de atividade ao fornecer o intervalo apropriado. O **intervalo** representa o **tempo de aviso antecipado**, ou seja, a quantidade de tempo antes do evento para enviar o lembrete.
-
-**Exemplo de como responder**:
-- "Para o evento de reunião urgente, sugiro um aviso de 10 minutos antes."
-- "O intervalo mais adequado para este compromisso é de 1 hora, devido ao tempo de deslocamento necessário."
-- "Como este é um evento simples, sugiro um aviso de 5 minutos antes."
 `;
 
     // Chamando a OpenAI para obter o intervalo
@@ -241,14 +224,11 @@ Por favor, considere a proximidade do evento, a urgência e o tipo de atividade 
       model: "gpt-4",
       messages: [{ role: "system", content: systemPrompt }],
       temperature: 0.7,
-      max_tokens: 50,  // Limite de tokens reduzido para garantir que o retorno seja somente o intervalo
+      max_tokens: 50,  // Limite de tokens para garantir que a resposta seja apenas o intervalo
     });
 
     // Garantindo que a variável responseMessage seja definida corretamente
     const responseMessage = gptResponse.choices?.[0]?.message?.content.trim() || "Intervalo não encontrado";
-
-    // Logando a resposta do GPT
-    console.log(`Resposta do GPT para o evento "${reminder.message}": ${responseMessage}`);
 
     // Verificando se a resposta contém um dos intervalos esperados
     const intervalMatches = responseMessage.match(/(1 hora|10 minutos|5 minutos|30 minutos)/);
@@ -260,30 +240,15 @@ Por favor, considere a proximidade do evento, a urgência e o tipo de atividade 
     // Extraindo o intervalo da resposta
     const intervalString = intervalMatches[0];
 
-    // Logando o intervalo extraído
-    console.log(`Intervalo extraído: ${intervalString}`);
-
-    // Modificando a mensagem para incluir o intervalo calculado
-    const updatedMessage = `${reminder.message} (Lembrete: ${intervalString})`;
-
-    // Criação do lembrete com a mensagem atualizada
-    await prisma.reminder.update({
-      where: {
-        id: reminder.id,
-      },
-      data: {
-        message: updatedMessage,  // A mensagem agora inclui o intervalo calculado
-      },
-    });
-
-    // Verificar se o horário atual é o momento adequado para enviar o lembrete
+    // Convertendo intervalo para minutos
     const intervalInMinutes = convertIntervalToMinutes(intervalString);
 
+    // Verificar se o horário atual é o momento adequado para enviar o lembrete
     if (now.isSame(reminderTime.subtract(intervalInMinutes, 'minutes')) || now.isAfter(reminderTime.subtract(intervalInMinutes, 'minutes'))) {
-      console.log(`Enviando lembrete: "${updatedMessage}" para o usuário ${reminder.user_id}`);
+      console.log(`Enviando lembrete para o usuário ${reminder.user_id}`);
       await sendReminderMessage(reminder); // Envia o lembrete
     } else {
-      console.log(`Ainda não chegou o horário para o lembrete: "${updatedMessage}". O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
+      console.log(`Ainda não chegou o horário para o lembrete. O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
     }
   }
 };
@@ -303,15 +268,13 @@ const convertIntervalToMinutes = (intervalString) => {
   }
 };
 
-
 // Função para enviar o lembrete, incluindo o log do intervalo
 const sendReminderMessage = async (reminder) => {
   const systemPrompt = `
-    Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora e amigável.
+    Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora avisando sobre o lembrete.
 
     A tarefa a ser lembrada: "${reminder.message}"
     Hora do lembrete: ${dayjs(reminder.remind_at).subtract(reminder.interval_in_minutes, 'minutes').format("YYYY-MM-DD HH:mm")}
-    O lembrete deve ser enviado ao usuário com o ID: ${reminder.user_id}
 
     **Instruções**: Ajuste o intervalo de envio com base na urgência do compromisso (1 hora para compromissos importantes, 10 minutos para tarefas simples).
 
@@ -364,7 +327,7 @@ const sendMessage = async (userId, message) => {
 // Agendando o envio de lembretes a cada 30 segundos
 setInterval(async () => {
   await checkAndSendReminders(); // Verifica e envia lembretes
-}, 180000); // A cada 30 segundos
+}, 1000 * 20); // A cada 30 segundos
 
 // Agendando a verificação de inatividade a cada 2 horas
 setInterval(async () => {
