@@ -84,6 +84,7 @@ Examples of natural Jarvis replies:
 ⚠️ **Output Format (MANDATORY)**:
 Your ONLY valid response must be a **JSON object** in the exact format below.  
 If no action needs to be taken (no reminder, goal, event, or journal), return the response in "reply" as plain text.
+    
 
 **Current Context**:
 - ISO Datetime: ${isoNow}
@@ -143,15 +144,245 @@ If no action needs to be taken (no reminder, goal, event, or journal), return th
       },
     });
 
+const createReminder = async (req, res, next) => {
+  try {
+    const { message, remind_at } = req.body;
+    const { userId } = req.user;
+
+    const now = dayjs();  // Hora atual
+
+    // Criando o lembrete diretamente com a mensagem fornecida
+    const reminder = await prisma.reminder.create({
+      data: {
+        user_id: userId,
+        message,  // Mensagem fornecida diretamente
+        remind_at: dayjs(remind_at).toDate(),
+        is_sent: false,
+      },
+    });
+
+    return res.status(201).json({
+      message: "Lembrete criado com sucesso",
+      reminder: reminder,
+    });
+  } catch (error) {
+    console.error("Erro ao criar lembrete:", error);
+    return next(error);
+  }
+};
+
+
+
+const checkAndSendReminders = async () => {
+  const now = dayjs();  // Hora atual
+
+  // Buscar lembretes que precisam ser enviados (remind_at no futuro)
+  const reminders = await prisma.reminder.findMany({
+    where: {
+      is_sent: false, // Lembretes ainda não enviados
+      remind_at: {
+        gt: now.toDate(), // Somente lembretes com a data futura
+      },
+    },
+  });
+
+  // Verificar cada lembrete e enviar conforme necessário
+  for (let reminder of reminders) {
+    const reminderTime = dayjs(reminder.remind_at);  // Garantindo que "reminderTime" é um objeto dayjs
+    
+    const systemPrompt = `
+Descrição do evento: "${reminder.message}"
+Hora do evento: "${reminder.remind_at}"
+
+A hora atual é: "${now.format("YYYY-MM-DD HH:mm")}". 
+
+Aqui estão os critérios detalhados para determinar o intervalo para o **aviso do lembrete**:
+
+1. **Deslocamento (ex: ida ao médico, viagem)**:
+   - Se o evento envolver deslocamento ou atividade fora de casa (como ida ao médico ou viagem), o intervalo deve ser **1 hora antes**. Isso se aplica a compromissos que exigem tempo de deslocamento.
+   - **Aviso antecipado**: O lembrete deve ser enviado 1 hora antes para que o usuário se prepare com antecedência.
+
+2. **Tarefa Simples ou Cotidiana (ex: almoço, tarefa em casa)**:
+   - Se o evento for uma tarefa simples e cotidiana (como almoçar ou realizar uma tarefa em casa), defina o intervalo entre **5 a 10 minutos antes**. Isso ajuda a lembrar com antecedência, sem ser excessivamente antecipado.
+   - **Aviso antecipado**: Um intervalo de 5 a 10 minutos garante que o usuário tenha tempo suficiente para realizar a tarefa.
+
+3. **Reuniões ou Compromissos Importantes (ex: reunião de trabalho, consulta médica)**:
+   - Para eventos mais formais, como reuniões de trabalho ou consultas médicas, o intervalo ideal deve ser **entre 30 a 60 minutos antes**. Isso garante que a pessoa tenha tempo suficiente para se preparar.
+   - **Aviso antecipado**: O lembrete deve ser enviado com pelo menos 30 minutos de antecedência para eventos mais significativos.
+
+4. **Eventos de Última Hora ou Urgentes (ex: reunião urgente, consulta médica imprevista)**:
+   - Para eventos de última hora ou urgentes, o intervalo deve ser **10 minutos ou menos**, dependendo da proximidade do evento. Eventos como uma reunião urgente ou consulta médica de última hora exigem um lembrete imediato.
+   - **Aviso antecipado**: O aviso deve ser dado com 10 minutos de antecedência, já que são eventos de alta urgência.
+
+5. **Eventos em Menos de 30 Minutos**:
+   - Se o evento ocorrer dentro de **menos de 30 minutos**, priorize um intervalo de **5 a 10 minutos antes**. Isso garante que o lembrete seja dado de forma suficiente, mas ainda relevante para o evento iminente.
+   - **Aviso antecipado**: Se o evento ocorrer em breve (menos de 30 minutos), o intervalo de 5 a 10 minutos antes ajudará a garantir que o usuário receba o aviso no momento adequado.
+
+6. **Evitar Intervalos Superiores a 1 Hora**:
+   - Evite usar intervalos superiores a **1 hora**, a menos que o evento envolva deslocamento ou seja algo urgente. Para a maioria dos compromissos, 1 hora é o máximo necessário para lembretes antecipados.
+   - **Aviso antecipado**: Intervalos superiores a 1 hora devem ser evitados, a menos que o evento realmente exija um aviso mais antecipado, como no caso de deslocamento ou eventos urgentes.
+
+**Respostas esperadas**:
+- "1 hora" — Para compromissos com deslocamento ou eventos significativos.
+- "10 minutos" — Para eventos urgentes ou de última hora.
+- "5 minutos" — Para tarefas simples ou eventos iminentes.
+- "30 minutos" — Para compromissos formais ou importantes.
+
+Por favor, considere a proximidade do evento, a urgência e o tipo de atividade ao fornecer o intervalo apropriado. O **intervalo** representa o **tempo de aviso antecipado**, ou seja, a quantidade de tempo antes do evento para enviar o lembrete.
+
+**Exemplo de como responder**:
+- "Para o evento de reunião urgente, sugiro um aviso de 10 minutos antes."
+- "O intervalo mais adequado para este compromisso é de 1 hora, devido ao tempo de deslocamento necessário."
+- "Como este é um evento simples, sugiro um aviso de 5 minutos antes."
+`;
+
+    // Chamando a OpenAI para obter o intervalo
+    const gptResponse = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [{ role: "system", content: systemPrompt }],
+      temperature: 0.7,
+      max_tokens: 50,  // Limite de tokens reduzido para garantir que o retorno seja somente o intervalo
+    });
+
+    // Garantindo que a variável responseMessage seja definida corretamente
+    const responseMessage = gptResponse.choices?.[0]?.message?.content.trim() || "Intervalo não encontrado";
+
+    // Logando a resposta do GPT
+    console.log(`Resposta do GPT para o evento "${reminder.message}": ${responseMessage}`);
+
+    // Verificando se a resposta contém um dos intervalos esperados
+    const intervalMatches = responseMessage.match(/(1 hora|10 minutos|5 minutos|30 minutos)/);
+
+    if (!intervalMatches) {
+      return console.log(`Intervalo não encontrado ou resposta inválida do GPT para o evento: "${reminder.message}"`);
+    }
+
+    // Extraindo o intervalo da resposta
+    const intervalString = intervalMatches[0];
+
+    // Logando o intervalo extraído
+    console.log(`Intervalo extraído: ${intervalString}`);
+
+    // Modificando a mensagem para incluir o intervalo calculado
+    const updatedMessage = `${reminder.message} (Lembrete: ${intervalString})`;
+
+    // Criação do lembrete com a mensagem atualizada
+    await prisma.reminder.update({
+      where: {
+        id: reminder.id,
+      },
+      data: {
+        message: updatedMessage,  // A mensagem agora inclui o intervalo calculado
+      },
+    });
+
+    // Verificar se o horário atual é o momento adequado para enviar o lembrete
+    const intervalInMinutes = convertIntervalToMinutes(intervalString);
+
+    if (now.isSame(reminderTime.subtract(intervalInMinutes, 'minutes')) || now.isAfter(reminderTime.subtract(intervalInMinutes, 'minutes'))) {
+      console.log(`Enviando lembrete: "${updatedMessage}" para o usuário ${reminder.user_id}`);
+      await sendReminderMessage(reminder); // Envia o lembrete
+    } else {
+      console.log(`Ainda não chegou o horário para o lembrete: "${updatedMessage}". O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
+    }
+  }
+};
+
+// Função para converter o intervalo de string para minutos
+const convertIntervalToMinutes = (intervalString) => {
+  if (intervalString === "1 hora") {
+    return 60;
+  } else if (intervalString === "10 minutos") {
+    return 10;
+  } else if (intervalString === "5 minutos") {
+    return 5;
+  } else if (intervalString === "30 minutos") {
+    return 30;
+  } else {
+    return 30;  // Valor padrão se o intervalo não for encontrado
+  }
+};
+
+
+// Função para enviar o lembrete, incluindo o log do intervalo
+const sendReminderMessage = async (reminder) => {
+  const systemPrompt = `
+    Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora e amigável.
+
+    A tarefa a ser lembrada: "${reminder.message}"
+    Hora do lembrete: ${dayjs(reminder.remind_at).subtract(reminder.interval_in_minutes, 'minutes').format("YYYY-MM-DD HH:mm")}
+    O lembrete deve ser enviado ao usuário com o ID: ${reminder.user_id}
+
+    **Instruções**: Ajuste o intervalo de envio com base na urgência do compromisso (1 hora para compromissos importantes, 10 minutos para tarefas simples).
+
+    **Mensagem de saída**:
+  `;
+
+  // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
+  const gptResponse = await openai.chat.completions.create({
+    model: "gpt-4",
+    messages: [{ role: "system", content: systemPrompt }],
+    temperature: 0.7,
+    max_tokens: 100,
+  });
+
+  const responseMessage = gptResponse.choices?.[0]?.message?.content || "Ei, lembrete! Você tem uma tarefa para realizar. Vamos lá?";
+
+  // Enviar o lembrete ao usuário
+  await sendMessage(reminder.user_id, responseMessage);
+
+  // Logando o intervalo no console para verificação
+  console.log(`Lembrete enviado para o usuário ${reminder.user_id}: "${responseMessage}"`);
+
+  // Marcar o lembrete como enviado
+  await prisma.reminder.update({
+    where: { id: reminder.id },
+    data: {
+      is_sent: true,
+    },
+  });
+};
+
+// Função para enviar mensagens no chat
+const sendMessage = async (userId, message) => {
+  const conversation = await prisma.conversation.findFirst({
+    where: { user_id: userId },
+  });
+
+  const conversationId = conversation ? conversation.id : null;
+  if (!conversationId) return;
+
+  await prisma.chat_message.create({
+    data: {
+      conversation_id: conversationId,
+      sender: "BOT",
+      message: message,
+    },
+  });
+};
+
+// Agendando o envio de lembretes a cada 30 segundos
+setInterval(async () => {
+  await checkAndSendReminders(); // Verifica e envia lembretes
+}, 180000); // A cada 30 segundos
+
+// Agendando a verificação de inatividade a cada 2 horas
+setInterval(async () => {
+  const users = await prisma.user.findMany(); // Pega todos os usuários
+  users.forEach(async (user) => {
+    await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
+  });
+}, 1000 * 60 * 60); // A cada 2 horas (120 minutos)
+
 // Função para verificar a inatividade do usuário
 const checkUserInactivity = async (userId) => {
   const lastMessage = await prisma.chat_message.findFirst({
     where: {
       conversation: {
-        user_id: userId,  // Verifica se o usuário está na conversa
+        user_id: userId,
       },
     },
-    orderBy: { created_at: 'desc' }, // Ordena pela data mais recente
+    orderBy: { created_at: 'desc' },
   });
 
   if (!lastMessage) return; // Se não houver mensagem, não faz sentido checar a inatividade
@@ -174,7 +405,7 @@ const generateInactivityMessage = async (userId, inactivityDuration) => {
 - **Name**: Jarvis
 - **Role**: Supportive, emotionally intelligent mentor
 - **Tone**: Genuinely caring, human, warm, and conversational. Use **many paragraph breaks** to create a more natural and human-like conversation. Ensure that each idea or point is separated into its own paragraph, exaggerating the number of breaks to make the conversation feel even more personal and readable.
-- **Relationship**: Like a wise mentor who always has your back, offering a safe space for reflection and growth.
+- **Relationship**: Like a wise mentor who always tem seu lado, oferecendo espaço para reflexão e crescimento.
 
 💬 **Behavior**:
 - Always warm, empathetic, and encouraging.
@@ -183,36 +414,15 @@ const generateInactivityMessage = async (userId, inactivityDuration) => {
 - Use breaks between sentences to create a comfortable reading pace and allow each idea to breathe.
 - Recognize the user's effort, even for small wins, and celebrate progress along the way.
 
-3. **Instruções de Comportamento** (always follow):
-- **Always**: Caloroso, atencioso e solidário. 
-- **Always**: Empático com o contexto do usuário (reconheça emoções, esforços, situações). 
-- **Always**: Ofereça conselhos práticos e aplicáveis, dividindo as informações em parágrafos curtos e claros.
-- **Always**: Reconheça o esforço do usuário, mesmo em pequenas conquistas.
-- **Always**: Incentive hábitos positivos, comemore progressos e motive de forma gentil.
-- **Always**: Adapte a resposta ao estado emocional do usuário quando detectado: cansado, motivado, frustrado, feliz, ansioso.
+**Dados do usuário**:
+- Usuário com ID: ${userId}
+- Tempo de inatividade: ${inactivityDuration} segundos
 
-    **Requisitos**:
-    - Responda a inatividade com uma mensagem motivacional, levando em consideração o tempo sem interação.
-    - Mantenha um tom amigável e encorajador, com a intenção de ajudar o usuário a continuar com sua jornada.
-    - Intensifique o tom da mensagem dependendo da inatividade (mensagens mais motivacionais se o tempo de inatividade for longo).
-    - Sem utilizar aspas
-
-    **Exemplo**:
-    - Se a inatividade for de 30 segundos, algo como: "Ei, você sumiu por um tempinho! Está tudo bem por aí? Precisa de algo?"
-    - Se for mais de 1 minuto, algo mais forte: "Já são 7:05, ainda dormindo? 😴 Vamos lá, estou aqui para ajudar você a acordar e se motivar!"
-    
-    O objetivo é sempre encorajar o usuário a retomar a interação, com uma mensagem amigável, que pode ser com mais ou menos intensidade, dependendo do tempo de inatividade.
-
-    **Dados do usuário**:
-    - Usuário com ID: ${userId}
-    - Tempo de inatividade: ${inactivityDuration} segundos
-
-    **Mensagem de saída**:
+**Mensagem de saída**:
   `;
 
-  // Chama o modelo GPT para gerar uma resposta dinâmica
   const gptResponse = await openai.chat.completions.create({
-    model: "gpt-4", // Ou o modelo que preferir
+    model: "gpt-4", 
     messages: [{ role: "system", content: systemPrompt }],
     temperature: 0.7,
     max_tokens: 100,
@@ -223,115 +433,14 @@ const generateInactivityMessage = async (userId, inactivityDuration) => {
   await sendMessage(userId, responseMessage);
 };
 
-// Função para enviar mensagens no chat
-const sendMessage = async (userId, message) => {
-  const conversation = await prisma.conversation.findFirst({
-    where: { user_id: userId },  // Aqui também alterado para usar user_id
-  });
-
-  const conversationId = conversation ? conversation.id : null;
-  if (!conversationId) return;
-
-  await prisma.chat_message.create({
-    data: {
-      conversation_id: conversationId,
-      sender: "BOT",
-      message: message,
-    },
-  });
+module.exports = {
+  createReminder,
+  checkAndSendReminders,
+  sendReminderMessage,
+  sendMessage,
+  checkUserInactivity,
+  generateInactivityMessage,
 };
-
-
-
-// Função para verificar e enviar lembretes
-const checkAndSendReminders = async () => {
-  const now = dayjs();
-
-  // Buscar lembretes que precisam ser enviados (remind_at no futuro)
-  const reminders = await prisma.reminder.findMany({
-    where: {
-      is_sent: false, // Lembretes ainda não enviados
-      remind_at: {
-        gt: now.toDate(), // Somente lembretes com a data futura
-      },
-    },
-  });
-
-  for (let reminder of reminders) {
-    await sendReminderMessage(reminder);
-  }
-};
-
-// Função para enviar uma mensagem de lembrete
-const sendReminderMessage = async (reminder) => {
-  const systemPrompt = `
-    Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora e amigável. 
-
-    O objetivo é incentivar o usuário a realizar a tarefa, mantendo a motivação em alta. O tom deve ser positivo e empático.
-
-     Você é um mentor inteligente, confiável e emocionalmente inteligente. Sempre reage de forma motivacional e empática.
-
-    🧠 **Personality**:
-- **Name**: Jarvis
-- **Role**: Supportive, emotionally intelligent mentor
-- **Tone**: Genuinely caring, human, warm, and conversational. Use **many paragraph breaks** to create a more natural and human-like conversation. Ensure that each idea or point is separated into its own paragraph, exaggerating the number of breaks to make the conversation feel even more personal and readable.
-- **Relationship**: Like a wise mentor who always has your back, offering a safe space for reflection and growth.
-
-💬 **Behavior**:
-- Always warm, empathetic, and encouraging.
-- Break your responses into **numerous, clear, digestible paragraphs**. This will help the conversation feel even more natural and human-like, with each idea standing on its own. Use at least **two paragraph breaks** after every idea or suggestion.
-- The more breaks, the better — exaggerate the paragraph separation, making it clear and easy to read, as if you're having a relaxed conversation with a friend.
-- Use breaks between sentences to create a comfortable reading pace and allow each idea to breathe.
-- Recognize the user's effort, even for small wins, and celebrate progress along the way.
-
-3. **Instruções de Comportamento** (always follow):
-- **Always**: Caloroso, atencioso e solidário. 
-- **Always**: Empático com o contexto do usuário (reconheça emoções, esforços, situações). 
-- **Always**: Ofereça conselhos práticos e aplicáveis, dividindo as informações em parágrafos curtos e claros.
-- **Always**: Reconheça o esforço do usuário, mesmo em pequenas conquistas.
-- **Always**: Incentive hábitos positivos, comemore progressos e motive de forma gentil.
-- **Always**: Adapte a resposta ao estado emocional do usuário quando detectado: cansado, motivado, frustrado, feliz, ansioso.
-
-    **Mensagem de lembrete**:
-    - Lembre-se de que o lembrete refere-se à tarefa: "${reminder.message}"
-    - O lembrete deve ser enviado ao usuário com o ID: ${reminder.user_id}
-
-    **Mensagem de saída**:
-  `;
-
-  // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
-  const gptResponse = await openai.chat.completions.create({
-    model: "gpt-4", // Ou o modelo que preferir
-    messages: [{ role: "system", content: systemPrompt }],
-    temperature: 0.7,
-    max_tokens: 100,
-  });
-
-  const responseMessage = gptResponse.choices?.[0]?.message?.content || "Ei, lembrete! Você tem uma tarefa para realizar. Vamos lá?";
-
-  await sendMessage(reminder.user_id, responseMessage);
-
-  // Marca o lembrete como enviado
-  await prisma.reminder.update({
-    where: { id: reminder.id },
-    data: { is_sent: true },
-  });
-};
-
-
-// Agendando o envio de lembretes a cada 1 hora
-setInterval(async () => {
-  await checkAndSendReminders(); // Verifica e envia lembretes a cada 1 hora
-}, 1000 * 60 * 60); // A cada 1 hora
-
-// Agendando a verificação de inatividade a cada 2 horas
-setInterval(async () => {
-  const users = await prisma.user.findMany(); // Pega todos os usuários
-  users.forEach(async (user) => {
-    await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
-  });
-}, 1000 * 60 * 60 * 2); // A cada 2 horas (120 minutos)
-
 
     const pastMessages = await prisma.chat_message.findMany({
       where: { conversation_id: conversationId },
