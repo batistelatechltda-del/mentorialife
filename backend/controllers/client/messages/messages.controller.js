@@ -248,7 +248,7 @@ Aqui estão os critérios detalhados para determinar o intervalo para o **aviso 
       console.log(`Enviando lembrete para o usuário ${reminder.user_id}`);
       await sendReminderMessage(reminder); // Envia o lembrete
     } else {
-      console.log(`Ainda não chegou o horário para o lembrete. O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
+      console.log(`${reminder.message} Ainda não chegou o horário para o lembrete. O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
     }
   }
 };
