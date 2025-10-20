@@ -327,7 +327,7 @@ const sendMessage = async (userId, message) => {
 // Agendando o envio de lembretes a cada 30 segundos
 setInterval(async () => {
   await checkAndSendReminders(); // Verifica e envia lembretes
-}, 1000 * 20); // A cada 30 segundos
+}, 180000); // A cada 30 segundos
 
 // Agendando a verificação de inatividade a cada 2 horas
 setInterval(async () => {
