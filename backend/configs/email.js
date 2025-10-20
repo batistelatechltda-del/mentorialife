@@ -68,4 +68,3 @@ const createAndSendEmail = async (opts) => {
 };
 
 module.exports = { createAndSendEmail, verifyEmail };
-
