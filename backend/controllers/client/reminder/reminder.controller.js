@@ -7,12 +7,13 @@ async function create(req, res) {
     const { userId } = req.user;
 
     const reminder = await prisma.reminder.create({
-      data: {
-        user_id: userId,
-        message,
-        remind_at,
-      },
-    });
+  data: {
+    user_id: userId,
+    message,
+    remind_at: dayjs(remind_at).toDate(),
+    is_sent: false,
+  },
+});
 
     return res.status(201).json(
       responses.createSuccessResponse(reminder, "Reminder created successfully.")
