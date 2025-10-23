@@ -172,6 +172,8 @@ const createReminder = async (req, res, next) => {
 };
 
 const checkAndSendReminders = async () => {
+  // Função delay para aguardar um tempo em milissegundos
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   const now = dayjs();  // Hora atual
 
   // Buscar lembretes que precisam ser enviados (remind_at no futuro)
@@ -186,87 +188,147 @@ const checkAndSendReminders = async () => {
 
   // Verificar cada lembrete e enviar conforme necessário
   for (let reminder of reminders) {
-    const reminderTime = dayjs(reminder.remind_at);  // Garantindo que "reminderTime" é um objeto dayjs
-    
-    // Definir o sistema de critérios para o intervalo com base na lógica
-    const systemPrompt = `
+    try {
+      const reminderTime = dayjs(reminder.remind_at);  // Garantindo que "reminderTime" é um objeto dayjs
+
+      // Definir o sistema de critérios para o intervalo com base na lógica
+      const systemPrompt = `
+Você é um assistente inteligente encarregado de calcular o intervalo ideal para enviar lembretes com base nas informações do evento. 
+O objetivo é calcular o tempo necessário entre o momento atual e o evento, para garantir que o lembrete seja enviado no momento correto.
+
 Descrição do evento: "${reminder.message}"
 Hora do evento: "${reminder.remind_at}"
 
 A hora atual é: "${now.format("YYYY-MM-DD HH:mm")}". 
 
-Aqui estão os critérios detalhados para determinar o intervalo para o **aviso do lembrete**:
+### **Objetivo**: 
+Determinar o intervalo de tempo para o lembrete, com base no tipo de evento que está sendo descrito, para garantir que o lembrete seja enviado na hora certa.
 
-1. **Deslocamento (ex: ida ao médico, viagem)**:
-   - Se o evento envolver deslocamento ou atividade fora de casa (como ida ao médico ou viagem), o intervalo deve ser **1 hora antes**. Isso se aplica a compromissos que exigem tempo de deslocamento.
-   
-2. **Tarefa Simples ou Cotidiana (ex: almoço, tarefa em casa)**:
-   - Se o evento for uma tarefa simples e cotidiana (como almoçar ou realizar uma tarefa em casa), defina o intervalo entre **5 a 10 minutos antes**. Isso ajuda a lembrar com antecedência, sem ser excessivamente antecipado.
-   
-3. **Reuniões ou Compromissos Importantes (ex: reunião de trabalho, consulta médica)**:
-   - Para eventos mais formais, como reuniões de trabalho ou consultas médicas, o intervalo ideal deve ser **entre 30 a 60 minutos antes**. Isso garante que a pessoa tenha tempo suficiente para se preparar.
-   
-4. **Eventos de Última Hora ou Urgentes (ex: reunião urgente, consulta médica imprevista)**:
-   - Para eventos de última hora ou urgentes, o intervalo deve ser **10 minutos ou menos**, dependendo da proximidade do evento. Eventos como uma reunião urgente ou consulta médica de última hora exigem um lembrete imediato.
-   
-5. **Eventos em Menos de 30 Minutos**:
-   - Se o evento ocorrer dentro de **menos de 30 minutos**, priorize um intervalo de **5 a 10 minutos antes**. Isso garante que o lembrete seja dado de forma suficiente, mas ainda relevante para o evento iminente.
+Critérios para determinar o intervalo:
 
-**Respostas esperadas**:
-- "1 hora" — Para compromissos com deslocamento ou eventos significativos.
-- "10 minutos" — Para eventos urgentes ou de última hora.
-- "5 minutos" — Para tarefas simples ou eventos iminentes.
-- "30 minutos" — Para compromissos formais ou importantes.
+Eventos com deslocamento (requiring travel):
+- Intervalo recomendado: "1 hora".
+- Exemplos: "Reunião de trabalho em um local distante", "Consulta médica em outro bairro", "Voo de avião para outra cidade".
+- Justificativa: Eventos que exigem deslocamento demandam mais tempo para o usuário se organizar e chegar a tempo.
+
+Eventos simples e cotidianos (tarefas rápidas ou de curto prazo):
+- Intervalo recomendado: "5 a 10 minutos".
+- Exemplos: "Almoçar em casa", "Fazer uma tarefa doméstica", "Organizar a mesa de trabalho".
+- Justificativa: Para eventos simples que não exigem preparação, o intervalo pode ser muito curto, entre 5 a 10 minutos antes.
+
+Compromissos importantes ou formais (requiring preparation):
+- Intervalo recomendado: "30 a 60 minutos".
+- Exemplos: "Reunião de trabalho com cliente", "Consulta médica", "Entrevista de emprego", "Reunião de negócios com apresentação".
+- Justificativa: Eventos mais formais, que exigem algum nível de preparação ou deslocamento, precisam de lembrete antecipado de 30 a 60 minutos.
+
+Eventos urgentes ou de última hora (immediate action required):
+- Intervalo recomendado: "10 minutos" ou "menos de 10 minutos".
+- Exemplos: "Reunião urgente", "Consulta médica de última hora", "Entrevista urgente", "Mudança de planos de última hora".
+- Justificativa: Para eventos urgentes ou imprevistos, o intervalo precisa ser o mais próximo possível do evento, normalmente 10 minutos ou menos.
+
+Eventos imediatos ou próximos (within 30 minutes or less):
+- Intervalo recomendado: "5 a 10 minutos".
+- Exemplos: "Chamada de vídeo em 15 minutos", "Reunião em 20 minutos", "Saída para um compromisso em 25 minutos".
+- Justificativa: Para eventos que vão ocorrer em menos de 30 minutos, o intervalo de 5 a 10 minutos é o mais apropriado para garantir que o lembrete ainda seja útil.
+
+### **Estrutura do Prompt para IA**:
+1. **A partir da descrição do evento**:
+   - Determine o tipo de evento (deslocamento, tarefa simples, reunião importante, urgente, imediato).
+   - Estime a quantidade de tempo necessário para a preparação ou deslocamento, se aplicável.
+
+2. **Comparar a hora atual com a hora do evento**:
+   - Calcule a diferença entre a hora atual e a hora do evento. Se o evento ocorrer em menos de 30 minutos, priorize um intervalo de **5 a 10 minutos**.
+
+3. **Responda com o intervalo adequado**:
+   - **1 hora** — Para compromissos com deslocamento ou eventos que exigem preparação.
+   - **10 minutos** — Para eventos urgentes ou imprevistos.
+   - **5 minutos** — Para tarefas simples ou eventos muito próximos.
+   - **30 minutos** — Para compromissos formais ou eventos importantes.
+
+### **Formato de Resposta Esperada**:
+A resposta será uma string com a quantidade de tempo exata para o lembrete, como uma das seguintes opções:
+
+"1 hora", "10 minutos", "5 minutos", "30 minutos".
 `;
 
-    // Chamando a OpenAI para obter o intervalo
-    const gptResponse = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "system", content: systemPrompt }],
-      temperature: 0.7,
-      max_tokens: 50,  // Limite de tokens para garantir que a resposta seja apenas o intervalo
-    });
+      const gptResponse = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [{ role: "system", content: systemPrompt }],
+        temperature: 0.7,
+        max_tokens: 50,  // Limite de tokens para garantir que a resposta seja apenas o intervalo
+      });
 
-    // Garantindo que a variável responseMessage seja definida corretamente
-    const responseMessage = gptResponse.choices?.[0]?.message?.content.trim() || "Intervalo não encontrado";
+      const responseMessage = gptResponse.choices?.[0]?.message?.content.trim() || "";
+      const intervalMatches = responseMessage.match(
+        /(2\s*horas?|1\s*hora|45\s*minutos?|30\s*minutos?|20\s*minutos?|15\s*minutos?|10\s*minutos?|5\s*minutos?)/i
+      );
 
-    // Verificando se a resposta contém um dos intervalos esperados
-    const intervalMatches = responseMessage.match(/(1 hora|10 minutos|5 minutos|30 minutos)/);
+      let intervalString = intervalMatches ? intervalMatches[0].toLowerCase() : inferIntervalFromMessage(reminder.message);
 
-    if (!intervalMatches) {
-      return console.log(`Intervalo não encontrado ou resposta inválida do GPT para o evento: "${reminder.message}"`);
-    }
+      // Fallback se o GPT não retornar nada utilizável → fallback automático
+      if (!intervalString) {
+        console.warn(
+          `⚠️ Intervalo não reconhecido pelo GPT. Usando fallback: "${reminder.message}"`
+        );
+        intervalString = inferIntervalFromMessage(reminder.message);
+      }
 
-    // Extraindo o intervalo da resposta
-    const intervalString = intervalMatches[0];
+      const intervalInMinutes = convertIntervalToMinutes(intervalString);
 
-    // Convertendo intervalo para minutos
-    const intervalInMinutes = convertIntervalToMinutes(intervalString);
+      // 🔹 Calcula o horário de envio real
+      const sendTime = reminderTime.subtract(intervalInMinutes, "minutes");
 
-    // Verificar se o horário atual é o momento adequado para enviar o lembrete
-    if (now.isSame(reminderTime.subtract(intervalInMinutes, 'minutes')) || now.isAfter(reminderTime.subtract(intervalInMinutes, 'minutes'))) {
-      console.log(`Enviando lembrete para o usuário ${reminder.user_id}`);
-      await sendReminderMessage(reminder); // Envia o lembrete
-    } else {
-      console.log(`${reminder.message} Ainda não chegou o horário para o lembrete. O horário do lembrete é: ${reminderTime.format("YYYY-MM-DD HH:mm")} e o intervalo é: ${intervalInMinutes} minutos.`);
+      // 🔹 Se chegou ou passou da hora, envia
+      if (now.isSame(sendTime, "minute") || now.isAfter(sendTime, "minute")) {
+        console.log(`⏰ Enviando lembrete "${reminder.message}" para o usuário ${reminder.user_id}...`);
+        await sendReminderMessage(reminder, intervalInMinutes);
+      } else {
+        console.log(`Ainda não é hora de enviar "${reminder.message}". Enviar às ${sendTime.format("HH:mm")}`);
+      }
+
+      // Adicionar uma espera entre as requisições para evitar exceder o rate limit
+      await delay(5000);  // Aguardar 5 segundos entre cada requisição
+    } catch (error) {
+      console.error("Erro ao processar lembrete:", error);
     }
   }
 };
 
 // Função para converter o intervalo de string para minutos
 const convertIntervalToMinutes = (intervalString) => {
-  if (intervalString === "1 hora") {
-    return 60;
-  } else if (intervalString === "10 minutos") {
-    return 10;
-  } else if (intervalString === "5 minutos") {
-    return 5;
-  } else if (intervalString === "30 minutos") {
-    return 30;
-  } else {
-    return 30;  // Valor padrão se o intervalo não for encontrado
-  }
+  const clean = intervalString?.toLowerCase().trim();
+  if (!clean) return 30;
+
+  if (clean.includes("2 horas")) return 120;
+  if (clean.includes("1 hora")) return 60;
+  if (clean.includes("45")) return 45;
+  if (clean.includes("30")) return 30;
+  if (clean.includes("20")) return 20;
+  if (clean.includes("15")) return 15;
+  if (clean.includes("10")) return 10;
+  if (clean.includes("5")) return 5;
+
+  return 30; // padrão
 };
+
+// =========================
+const inferIntervalFromMessage = (message) => {
+  const text = message.toLowerCase();
+
+  if (text.match(/viagem longa|viagem internacional|voo|aeroporto|ônibus interestadual|ônibus rodoviário|deslocamento longo|reunião fora da cidade|evento importante|casamento|formatura|cerimônia|viagem de negócios|viagem para outra cidade|palestra|congresso|seminário|apresentação grande/)) {
+  return "2 horas";}
+  if (text.match(/viagem|ônibus|metrô|trânsito|deslocamento|compromisso fora|reunião externa|consulta distante/)) {return "1 hora";}
+  if (text.match(/reunião|entrevista|apresentação|cliente|negócio/)) return "30 minutos";
+  if (text.match(/consulta|médico|dentista|psicólogo/)) return "45 minutos";
+  if (text.match(/trabalho|prova|aula|treino|academia/)) return "20 minutos";
+  if (text.match(/urgente|agora|imediato|última hora/)) return "10 minutos";
+  if (text.match(/chamada|ligação|videochamada/)) return "15 minutos";
+  if (text.match(/tarefa|lembrete|coisa rápida|organizar|limpar|arrumar/)) return "5 minutos";
+
+  // Se não achou nenhuma correspondência
+  return "30 minutos";
+};
+
 
 // Função para enviar o lembrete, incluindo o log do intervalo
 const sendReminderMessage = async (reminder) => {
@@ -335,7 +397,7 @@ setInterval(async () => {
   users.forEach(async (user) => {
     await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
   });
-}, 1000 * 60 * 60); // A cada 2 horas (120 minutos)
+}, 1000 * 60 * 60); // A cada 1 hora (60 minutos)
 
 // Função para verificar a inatividade do usuário
 const checkUserInactivity = async (userId) => {
