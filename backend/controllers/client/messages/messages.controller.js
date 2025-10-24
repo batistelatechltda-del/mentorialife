@@ -287,7 +287,7 @@ A resposta será uma string com a quantidade de tempo exata para o lembrete, com
       }
 
       // Adicionar uma espera entre as requisições para evitar exceder o rate limit
-      await delay(5000);  // Aguardar 5 segundos entre cada requisição
+      await delay(1000 * 30);  // Aguardar 30 segundos entre cada requisição
     } catch (error) {
       console.error("Erro ao processar lembrete:", error);
     }
@@ -389,7 +389,7 @@ const sendMessage = async (userId, message) => {
 // Agendando o envio de lembretes a cada 30 segundos
 setInterval(async () => {
   await checkAndSendReminders(); // Verifica e envia lembretes
-}, 1800000); // A cada 30 minutos
+}, 1000 * 60 * 15); // A cada 15 minutos
 
 // Agendando a verificação de inatividade a cada 2 horas
 setInterval(async () => {
