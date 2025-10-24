@@ -287,7 +287,7 @@ A resposta será uma string com a quantidade de tempo exata para o lembrete, com
       }
 
       // Adicionar uma espera entre as requisições para evitar exceder o rate limit
-      await delay(1000 * 30);  // Aguardar 30 segundos entre cada requisição
+      await delay(1000 * 30);  // Aguardar 5 segundos entre cada requisição
     } catch (error) {
       console.error("Erro ao processar lembrete:", error);
     }
@@ -330,17 +330,20 @@ const inferIntervalFromMessage = (message) => {
 };
 
 
-// Função para enviar o lembrete, incluindo o log do intervalo
 const sendReminderMessage = async (reminder) => {
+  // Usando diretamente o horário original do lembrete sem subtrair o intervalo
+  const originalTime = dayjs(reminder.remind_at).format("YYYY-MM-DD HH:mm");
+
+  // Prompt para a IA para gerar a mensagem
   const systemPrompt = `
     Você é um mentor inteligente e atencioso. Sempre que um lembrete é disparado, você deve enviar uma mensagem encorajadora avisando sobre o lembrete.
 
     A tarefa a ser lembrada: "${reminder.message}"
-    Hora do lembrete: ${dayjs(reminder.remind_at).subtract(reminder.interval_in_minutes, 'minutes').format("YYYY-MM-DD HH:mm")}
+    Hora do lembrete: ${originalTime}
 
     **Instruções**: Ajuste o intervalo de envio com base na urgência do compromisso (1 hora para compromissos importantes, 10 minutos para tarefas simples).
 
-    **Mensagem de saída**:
+    **Mensagem de saída**: Sem utilização das Aspas duplas:
   `;
 
   // Chama o modelo GPT para gerar uma resposta dinâmica para o lembrete
@@ -397,7 +400,7 @@ setInterval(async () => {
   users.forEach(async (user) => {
     await checkUserInactivity(user.id); // Verifica a inatividade de cada usuário
   });
-}, 1000 * 60 * 60); // A cada 1 hora (60 minutos)
+}, 1000 * 60  * 60); // A cada 1 hora (60 minutos)
 
 // Função para verificar a inatividade do usuário
 const checkUserInactivity = async (userId) => {
