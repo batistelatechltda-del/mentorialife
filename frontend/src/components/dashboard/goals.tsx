@@ -126,52 +126,52 @@ const GoalsPage = ({ initialGoals }: any) => {
   // Função para gerar a mensagem motivacional baseada no progresso
   const getMotivationalMessage = (completionRate: number) => {
     const messages = {
-      "0-25": [
-        "Comece agora e faça acontecer! 💥",
-        "O primeiro passo já foi dado, agora é seguir em frente! 🚀",
-        "Cada início é um passo para o sucesso. Vamos lá! 💪",
-        "Não pare! O começo é sempre o mais difícil! 🔥",
-        "Você começou com o pé direito. Agora, só falta continuar! ⚡",
-        "A jornada começa agora. Vá em frente! 🌟",
-        "Está só começando, mas já está indo muito bem! 💥",
-      ],
-      "25-50": [
-        "Você está indo bem! Mantenha o foco! 🔥",
-        "A metade do caminho está feita. Não pare agora! 💯",
-        "Já percorreu uma boa parte! Continue com tudo! 🚀",
-        "Quase lá! Seu progresso está impressionante! 🙌",
-        "Excelente progresso! Agora acelere mais! 🔥",
-        "Nada pode parar você agora. Continue assim! 💪",
-        "Você está avançando muito bem! O objetivo está próximo! 🌟",
-      ],
-      "50-75": [
-        "Bom progresso! Vamos acelerar! 🚀",
-        "Metade do caminho foi percorrida, agora é só dar o gás! 💨",
-        "Está quase lá! Acelere e vá com tudo! 💪",
-        "Você está indo muito bem, agora vamos para a reta final! 🏁",
-        "Seu progresso é impressionante! Vamos acelerar ainda mais! 💥",
-        "Já passou da metade, agora é só aumentar a velocidade! 🔥",
-        "A metade do trabalho está feito, agora só falta dar o toque final! 🚀",
-      ],
-      "75-100": [
-        "Quase lá, continue assim! 💪",
-        "O fim está próximo! Só mais um empurrão! 🚀",
-        "Você está quase lá, não pare agora! 💥",
-        "Está na reta final! Só falta um último esforço! 💪",
-        "Continue assim, você está prestes a alcançar seu objetivo! 🌟",
-        "Faltam poucos passos! Vai com tudo! 💯",
-        "Quase lá! Agora é só dar aquele último gás! 🏆",
-      ],
-      "100": [
-        "Mandou bem, rei 🏆",
-        "Você conseguiu! Parabéns! 🎉",
-        "Objetivo alcançado! Você é incrível! 💪",
-        "Meta cumprida! Agora, comemore! 🥳",
-        "Fez acontecer! Parabéns pelo esforço e sucesso! 🌟",
-        "Você conquistou tudo! Muito bem! 🔥",
-        "Objetivo cumprido com sucesso! Você é uma lenda! 🏆",
-      ],
-    };
+  "0-25": [
+    "Start now and make it happen! 💥",
+    "The first step is already taken, now keep moving forward! 🚀",
+    "Every beginning is a step toward success. Let's go! 💪",
+    "Don't stop! The start is always the hardest! 🔥",
+    "You started off on the right foot. Now, just keep going! ⚡",
+    "The journey starts now. Go ahead! 🌟",
+    "It's just the beginning, but you're already doing great! 💥",
+  ],
+  "25-50": [
+    "You're doing great! Stay focused! 🔥",
+    "Halfway there! Don't stop now! 💯",
+    "You've come a long way! Keep pushing! 🚀",
+    "Almost there! Your progress is impressive! 🙌",
+    "Excellent progress! Now step it up! 🔥",
+    "Nothing can stop you now. Keep it up! 💪",
+    "You're making great strides! The goal is near! 🌟",
+  ],
+  "50-75": [
+    "Great progress! Let's speed up! 🚀",
+    "Half the journey is done, now let's give it some gas! 💨",
+    "You're almost there! Step on the gas and go all out! 💪",
+    "You're doing great, now let's finish strong! 🏁",
+    "Your progress is amazing! Let's speed up even more! 💥",
+    "Halfway done, now let's turn up the speed! 🔥",
+    "Half the work is done, now just finish it off! 🚀",
+  ],
+  "75-100": [
+    "Almost there, keep going! 💪",
+    "The end is near! Just one more push! 🚀",
+    "You're almost there, don't stop now! 💥",
+    "It's the home stretch! Just one final effort! 💪",
+    "Keep it up, you're about to reach your goal! 🌟",
+    "Only a few steps left! Go all the way! 💯",
+    "Almost there! Just give that final push! 🏆",
+  ],
+  "100": [
+    "Well done, champ 🏆",
+    "You did it! Congratulations! 🎉",
+    "Goal achieved! You're amazing! 💪",
+    "Mission accomplished! Now, celebrate! 🥳",
+    "You made it happen! Congratulations on the effort and success! 🌟",
+    "You’ve conquered it all! Great job! 🔥",
+    "Goal completed successfully! You’re a legend! 🏆",
+  ],
+};
 
     const range = completionRate <= 25
       ? "0-25"
