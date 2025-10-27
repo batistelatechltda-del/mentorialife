@@ -30,22 +30,23 @@ const verifyEmail = async (email) => {
 
 const createAndSendEmail = async (opts) => {
   try {
-    // Criando o transporte SMTP
+
     const transporter = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST,
       port: process.env.EMAIL_SERVER_PORT,
-      secure: true, // Certifique-se de que esta opção está correta para o seu servidor
+      secure: true,
       auth: {
         user: process.env.SENDER_USERNAME,
         pass: process.env.SENDER_EMAIL_PASSWORD,
       },
     });
 
-    // Verificando se a conexão com o servidor SMTP foi estabelecida com sucesso
-    await transporter.verify();
-    console.log("SMTP server verified successfully!");
+    await transporter.verify((error) => {
+      if (error) {
+        throw new Error("SMTP server verification failed");
+      }
+    });
 
-    // Definindo os parâmetros do e-mail
     const mailOpts = {
       from: process.env.SENDER_EMAIL_HERE,
       to: opts.to,
@@ -53,7 +54,6 @@ const createAndSendEmail = async (opts) => {
       html: opts.html,
     };
 
-    // Enviando o e-mail
     return transporter.sendMail(mailOpts, (error, info) => {
       if (error) {
         return { error, response: null };
@@ -62,7 +62,6 @@ const createAndSendEmail = async (opts) => {
     });
 
   } catch (error) {
-    console.error("SMTP Error:", error);
     return { error: error.message, response: null };
   }
 };
