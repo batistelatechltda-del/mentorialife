@@ -8,7 +8,9 @@ const MessagesRoutes = require("./messages/messages.routes");
 const ReminderRoutes = require("./reminder/reminder.routes");
 const GoalRoutes = require("./goal/goal.routes");
 const lifearemap = require("./lifearemap/lifearemap.route");
+const pushRoutes = require("./push/push.routes");
 
+router.use("/push", pushRoutes);
 router.use("/life-areas", lifearemap);
 router.use("/journal", JournalRoutes);
 router.use("/calendar-event", CalendarEventRoutes);
