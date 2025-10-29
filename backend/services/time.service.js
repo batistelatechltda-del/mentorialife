@@ -13,6 +13,16 @@ const getTimeDifferenceInMinutes = (date) => {
   return minutes;
 };
 
+const { sendReminderExpiredEvent } = require('../configs/pusher');
+
+// Verificando se o lembrete expirou
+function checkReminderExpiration(reminderDate, userId) {
+    const isExpired = hasPassedXNumberOfDays(reminderDate, 0); // 0 dias para verificar se a data já passou
+    if (isExpired) {
+        sendReminderExpiredEvent(userId, "Seu lembrete expirou. Vamos continuar amanhã!");
+    }
+}
+
 const unixTimeInMinutes = (date) => {
   const timeInMilliseconds = new Date(date).getTime();
   const timeInMinutes = timeInMilliseconds / (1000 * 60);
