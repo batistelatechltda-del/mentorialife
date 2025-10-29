@@ -2,12 +2,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../../auth.css";
 import AuthForm from "@/components/AuthForm";
+import { initFirebase, requestPermissionAndRegisterToken } from "@/firebase";
 
 const Welcome: React.FC = () => {
   const starsContainerRef = useRef<HTMLDivElement>(null);
-  const [authMode, setAuthMode] = useState<"none" | "login" | "register">(
-    "none"
-  );
+  const [authMode, setAuthMode] = useState<"none" | "login" | "register">("none");
 
   useEffect(() => {
     if (starsContainerRef.current) {
@@ -26,10 +25,9 @@ const Welcome: React.FC = () => {
           starsContainer.appendChild(star);
         }
       };
-
       createStars();
     }
-    return () => console.log("");
+    return () => {};
   }, []);
 
   const handleNewUser = (e: React.MouseEvent) => {
@@ -43,9 +41,27 @@ const Welcome: React.FC = () => {
     setAuthMode("login");
   };
 
-  const handleAuthSuccess = () => {
-    if (localStorage.getItem("authMode") === "new") {
-    } else {
+  // ✅ Chamado quando login ou cadastro é concluído
+  const handleAuthSuccess = async () => {
+    try {
+      // Inicializa Firebase
+      initFirebase();
+
+      // Recupera ID do usuário salvo após o login
+      const userId = localStorage.getItem("userId");
+      if (!userId) {
+        console.warn("Nenhum userId encontrado no localStorage — verifique AuthForm");
+        return;
+      }
+
+      // Solicita permissão e gera novo token
+      const newToken = await requestPermissionAndRegisterToken(userId);
+
+      console.log("Novo token FCM:", newToken);
+      alert("🔔 Notificações ativas com sucesso!");
+
+    } catch (err) {
+      console.error("Erro ao registrar notificação:", err);
     }
   };
 
