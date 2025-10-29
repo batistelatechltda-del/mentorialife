@@ -1,0 +1,355 @@
+/* Authentication Page Styles */
+.auth-view,
+.onboarding-view {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--dark-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background-color: white;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: twinkle 3s infinite;
+}
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.2;
+  }
+}
+
+/* Onboarding specific styles */
+.onboarding-view .content-container {
+  text-align: center;
+  z-index: 1;
+  max-width: 600px;
+  width: 100%;
+  opacity: 0;
+  animation: fadeIn 1s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+
+.mentor-question {
+  text-align: center;
+  font-size: 1.8rem;
+  color: #00cfff;
+  text-shadow: 0 0 10px #00cfff88;
+  margin-bottom: 10px;
+}
+
+.mentor-subtext {
+  text-align: center;
+  font-size: 1rem;
+  color: #bbbbbb;
+  margin-bottom: 30px;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.option-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 0 10px #00cfff44;
+  cursor: pointer;
+  text-align: left;
+}
+
+.option-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.option-btn.selected {
+  background: rgba(0, 207, 255, 0.3);
+  border: 1px solid #00cfff;
+  box-shadow: 0 0 10px #00cfff77;
+}
+
+.button-row {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+#next-btn,
+.back-btn {
+  background: linear-gradient(to right, #00cfff, #ff50e2);
+  color: white;
+  padding: 10px 25px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 0 12px #00cfff66;
+  transition: all 0.3s ease;
+}
+
+
+.back-btn {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+#mic-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#mic-btn.recording {
+  background: linear-gradient(to right, #ff50e2, #00cfff);
+  box-shadow: 0 0 20px #ff50e277;
+}
+
+.voice-note {
+  text-align: center;
+  color: #bbbbbb;
+  font-style: italic;
+  max-width: 500px;
+  margin: 20px auto;
+}
+
+.voice-message {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 15px 20px;
+  color: white;
+  max-width: 600px;
+  margin: 30px auto 0 auto;
+  font-size: 1.1rem;
+  box-shadow: 0 0 12px #00cfff33;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}
+
+#manual-input,
+textarea#manual-input {
+  width: 100%;
+  max-width: 600px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  margin: 20px auto;
+}
+
+#manual-input:focus,
+textarea#manual-input:focus {
+  outline: none;
+  border-color: #00cfff;
+  box-shadow: 0 0 12px #00cfff33;
+}
+
+textarea#manual-input {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.progress {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  color: #bbbbbb;
+  font-size: 1rem;
+}
+
+.progress .current {
+  color: #00cfff;
+  font-weight: bold;
+}
+
+.error-message {
+  color: #ff5050;
+  margin-top: 5px;
+  display: block;
+}
+
+.auth-container {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.auth-form-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2rem;
+  background-color: rgba(25, 25, 35, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid var(--neon-border);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+  max-width: 500px;
+  margin: auto;
+  & h2 {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+.auth-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  max-width: 500px;
+  margin: auto;
+}
+
+.reset-password {
+  background-color: rgba(25, 25, 35, 0.7);
+  padding: 2rem;
+  border-radius: 20px;
+}
+.auth-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--neon-text);
+  text-align: center;
+}
+
+.auth-subtitle {
+  font-size: 1.125rem;
+  margin-bottom: 15px;
+  color: #a0aec0;
+  text-align: center;
+}
+
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.auth-loading {
+  width: 30px;
+  height: 30px;
+  border: 3px solid transparent;
+  border-top-color: var(--neon-border);
+  border-radius: 50%;
+  animation: spin 1s ease infinite;
+  margin-right: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.hero-content {
+  color: white;
+  background-color: rgba(25, 25, 35, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  border: 1px solid var(--neon-border);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+.hero-content h2 {
+  font-size: 1.875rem;
+  margin-bottom: 1rem;
+  color: var(--neon-text);
+}
+
+.hero-content p {
+  margin-bottom: 1.5rem;
+}
+
+.hero-content ul {
+  list-style-type: none;
+  padding-left: 1rem;
+}
+
+.hero-content li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.hero-content li:before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: var(--neon-text);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .auth-container {
+    flex-direction: column;
+  }
+
+  .auth-form-container,
+  .auth-hero {
+    width: 100%;
+    max-width: 100%;
+  }
+}

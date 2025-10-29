@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum user_type {
+  USER
+  ADMIN
+  SUBSCRIBER
+}
+
+enum message_sender {
+  USER
+  BOT
+}
+
+model user {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  type              user_type
+  social_id         String?
+  platform          String?
+  last_wakeup_email DateTime?
+  is_verified       Boolean   @default(false)
+  is_active         Boolean   @default(true)
+  is_deleted        Boolean   @default(false)
+  is_notification   Boolean   @default(false)
+  push_notification Boolean   @default(false)
+
+  authentication    authentication?
+  profile           profile?
+  conversations     conversation[]
+  goals             goal[]
+  journals          journal[]
+  reminders         reminder[]
+  calendarEvents    calendar_event[]
+  lifeAreas         life_area[]
+  push_subscription push_subscription[]
+  push_tokens  push_token[] 
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model authentication {
+  id                String  @id @default(uuid())
+  email_otp         String?
+  is_email_verified Boolean @default(false)
+
+  verification_id String?       @unique
+  verification    verification? @relation(fields: [verification_id], references: [id], onDelete: Cascade)
+
+  user_id String? @unique
+  user    user?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model push_token {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String?  // e.g., "web", "android", "ios"
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model verification {
+  id           String    @id @default(uuid())
+  email        String
+  password     String
+  full_name    String?
+  social_id    String?
+  platform     String?
+  phone_number String?
+  type         user_type @default(USER)
+
+  authentication authentication?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model profile {
+  id      String @id @default(uuid())
+  user_id String @unique
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  full_name           String?
+  phone_number        String?
+  profile_picture_url String?
+  bio                 String?
+  mentor_name         String?
+
+  is_deleted Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model push_subscription {
+  id         String   @id @default(uuid())
+  user_id    String   @unique
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  endpoint   String
+  auth       String
+  p256dh     String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model conversation {
+  id       String         @id @default(uuid())
+  user_id  String
+  user     user           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  title    String         @default("New Chat")
+  messages chat_message[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model chat_message {
+  id              String         @id @default(uuid())
+  conversation_id String
+  conversation    conversation   @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  sender          message_sender
+  message         String
+  is_flagged      Boolean        @default(false)
+
+  life_area_sub_goal life_area_sub_goal[] // reverse relation for tracking AI-generated sub-goals
+
+  created_at DateTime @default(now())
+
+  @@index([conversation_id])
+}
+
+model goal {
+  id      String @id @default(uuid())
+  user_id String
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  title         String
+  description   String?
+  is_completed  Boolean   @default(false)
+  due_date      DateTime?
+  is_email_sent Boolean   @default(false)
+
+  sub_goal_id String?
+  sub_goal    life_area_sub_goal? @relation("SubGoalGoals", fields: [sub_goal_id], references: [id], onDelete: SetNull)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model journal {
+  id      String @id @default(uuid())
+  user_id String
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  emoji       String?        
+  category    String?       
+  favorite    Boolean @default(false) 
+  content       String
+  is_auto       Boolean @default(false)
+  is_completed  Boolean @default(false)
+  is_email_sent Boolean @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model reminder {
+  id                String   @id @default(uuid())
+  user_id           String
+  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  message           String
+  remind_at         DateTime
+  is_sent           Boolean  @default(false)
+  is_completed      Boolean  @default(false)
+  is_email_sent     Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
+
+model calendar_event {
+  id      String @id @default(uuid())
+  user_id String
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  title         String
+  description   String?
+  start_time    DateTime
+  end_time      DateTime?
+  is_completed  Boolean   @default(false)
+  is_email_sent Boolean   @default(false)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model life_area {
+  id      String @id @default(uuid())
+  user_id String
+  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  name      String
+  color     String?
+  sub_goals life_area_sub_goal[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([user_id, name])
+}
+
+model life_area_sub_goal {
+  id           String    @id @default(uuid())
+  life_area_id String
+  life_area    life_area @relation(fields: [life_area_id], references: [id], onDelete: Cascade)
+
+  title        String
+  description  String?
+  due_date     DateTime?
+  is_completed Boolean   @default(false)
+  priority     Int       @default(0)
+
+  chat_message_id String?
+  chat_message    chat_message? @relation(fields: [chat_message_id], references: [id], onDelete: SetNull)
+
+  goals goal[] @relation("SubGoalGoals")
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
