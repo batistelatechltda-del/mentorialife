@@ -41,6 +41,7 @@ model user {
   calendarEvents    calendar_event[]
   lifeAreas         life_area[]
   push_subscription push_subscription[]
+  push_tokens  push_token[] 
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -57,6 +58,16 @@ model authentication {
   user_id String? @unique
   user    user?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model push_token {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String?  // e.g., "web", "android", "ios"
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 }
@@ -152,7 +163,9 @@ model journal {
   id      String @id @default(uuid())
   user_id String
   user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
+  emoji       String?        
+  category    String?       
+  favorite    Boolean @default(false) 
   content       String
   is_auto       Boolean @default(false)
   is_completed  Boolean @default(false)
@@ -163,18 +176,17 @@ model journal {
 }
 
 model reminder {
-  id      String @id @default(uuid())
-  user_id String
-  user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  user_id           String
+  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  message       String
-  remind_at     DateTime
-  is_sent       Boolean  @default(false)
-  is_completed  Boolean  @default(false)
-  is_email_sent Boolean  @default(false)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  message           String
+  remind_at         DateTime
+  is_sent           Boolean  @default(false)
+  is_completed      Boolean  @default(false)
+  is_email_sent     Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 }
 
 model calendar_event {
