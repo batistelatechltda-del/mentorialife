@@ -2,12 +2,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../../auth.css";
 import AuthForm from "@/components/AuthForm";
+<<<<<<< HEAD
 
 const Welcome: React.FC = () => {
   const starsContainerRef = useRef<HTMLDivElement>(null);
   const [authMode, setAuthMode] = useState<"none" | "login" | "register">(
     "none"
   );
+=======
+import { initFirebase, requestPermissionAndRegisterToken } from "@/firebase";
+
+const Welcome: React.FC = () => {
+  const starsContainerRef = useRef<HTMLDivElement>(null);
+  const [authMode, setAuthMode] = useState<"none" | "login" | "register">("none");
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 
   useEffect(() => {
     if (starsContainerRef.current) {
@@ -26,10 +34,16 @@ const Welcome: React.FC = () => {
           starsContainer.appendChild(star);
         }
       };
+<<<<<<< HEAD
 
       createStars();
     }
     return () => console.log("");
+=======
+      createStars();
+    }
+    return () => {};
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
   }, []);
 
   const handleNewUser = (e: React.MouseEvent) => {
@@ -43,9 +57,33 @@ const Welcome: React.FC = () => {
     setAuthMode("login");
   };
 
+<<<<<<< HEAD
   const handleAuthSuccess = () => {
     if (localStorage.getItem("authMode") === "new") {
     } else {
+=======
+  // ✅ Chamado quando login ou cadastro é concluído
+  const handleAuthSuccess = async () => {
+    try {
+      // Inicializa Firebase
+      initFirebase();
+
+      // Recupera ID do usuário salvo após o login
+      const userId = localStorage.getItem("userId");
+      if (!userId) {
+        console.warn("Nenhum userId encontrado no localStorage — verifique AuthForm");
+        return;
+      }
+
+      // Solicita permissão e gera novo token
+      const newToken = await requestPermissionAndRegisterToken(userId);
+
+      console.log("Novo token FCM:", newToken);
+      alert("🔔 Notificações ativas com sucesso!");
+
+    } catch (err) {
+      console.error("Erro ao registrar notificação:", err);
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
     }
   };
 

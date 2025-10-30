@@ -41,6 +41,10 @@ model user {
   calendarEvents    calendar_event[]
   lifeAreas         life_area[]
   push_subscription push_subscription[]
+<<<<<<< HEAD
+=======
+  push_tokens  push_token[] 
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -61,6 +65,19 @@ model authentication {
   updated_at DateTime @updatedAt
 }
 
+<<<<<<< HEAD
+=======
+model push_token {
+  id         String   @id @default(uuid())
+  user_id    String
+  user       user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  token      String   @unique
+  platform   String?  // e.g., "web", "android", "ios"
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 model verification {
   id           String    @id @default(uuid())
   email        String
@@ -152,7 +169,13 @@ model journal {
   id      String @id @default(uuid())
   user_id String
   user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+<<<<<<< HEAD
 
+=======
+  emoji       String?        
+  category    String?       
+  favorite    Boolean @default(false) 
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
   content       String
   is_auto       Boolean @default(false)
   is_completed  Boolean @default(false)
@@ -163,6 +186,7 @@ model journal {
 }
 
 model reminder {
+<<<<<<< HEAD
   id      String @id @default(uuid())
   user_id String
   user    user   @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -175,6 +199,19 @@ model reminder {
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+=======
+  id                String   @id @default(uuid())
+  user_id           String
+  user              user     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  message           String
+  remind_at         DateTime
+  is_sent           Boolean  @default(false)
+  is_completed      Boolean  @default(false)
+  is_email_sent     Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 }
 
 model calendar_event {

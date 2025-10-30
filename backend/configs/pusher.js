@@ -8,4 +8,16 @@ const pusher = new Pusher({
     useTLS: true
 });
 
+<<<<<<< HEAD
 module.exports = { pusher };
+=======
+// Função para enviar evento de lembrete expirado
+function sendReminderExpiredEvent(userId, message) {
+    pusher.trigger('reminders-channel', 'reminder-expired', {
+        userId: userId,
+        message: message
+    });
+}
+
+module.exports = { pusher, sendReminderExpiredEvent };
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f

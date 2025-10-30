@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+const { messaging } = require("./configs/firebaseAdmin");
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 const env = require("dotenv");
 const path = require("path");
 const cron = require("node-cron");
@@ -26,6 +30,7 @@ const envFile =
 
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
+<<<<<<< HEAD
 const HOST = process.env.HOST; // não usar IP fixo por padrão
 
 const listenInfo = () =>
@@ -44,6 +49,16 @@ if (HOST) {
     logger.info(listenInfo());
   });
 }
+=======
+const HOST = process.env.HOST || "192.168.18.71";
+
+app.listen(PORT, HOST, () => {
+  logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
+  🌍 Environment: ${process.env.NODE_ENV || "live"}
+  ⚙️ Loaded Config from: ${envFile}
+  🧪 TEST_VAR: ${process.env.TEST_VAR}`);
+});
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
 
 
 cron.schedule("*/1 * * * *", async () => {
@@ -129,6 +144,11 @@ cron.schedule("*/1 * * * *", async () => {
               sender: "BOT",
             },
           });
+<<<<<<< HEAD
+=======
+
+          
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
           await pusher.trigger(`user-${userId}`, "notification", {
             id: createdMessage.id,
             message: createdMessage.message,
@@ -136,6 +156,54 @@ cron.schedule("*/1 * * * *", async () => {
             timestamp: createdMessage.created_at,
           });
         }
+<<<<<<< HEAD
+=======
+
+        try {
+  // buscar tokens do usuário
+  const tokens = await prisma.push_token.findMany({
+    where: { user_id: item.user.id },
+    select: { token: true },
+  });
+
+  const registrationTokens = tokens.map(t => t.token).filter(Boolean);
+  if (registrationTokens.length) {
+    const payload = {
+      notification: {
+        title: `${title || "Reminder"}`,
+        body: `${description || item.message || "You have a reminder."}`,
+      },
+      data: {
+        type: type,
+        id: item.id,
+      },
+    };
+
+    // sendMulticast para enviar para múltiplos tokens
+    const response = await messaging.sendMulticast({
+      ...payload,
+      tokens: registrationTokens,
+    });
+
+    // opcional: limpar tokens inválidos
+    if (response.failureCount > 0) {
+      const failedTokens = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success) {
+          failedTokens.push(registrationTokens[idx]);
+        }
+      });
+      if (failedTokens.length) {
+        await prisma.push_token.deleteMany({ where: { token: { in: failedTokens } }});
+      }
+    }
+  }
+} catch (err) {
+  console.error("FCM send error:", err);
+}
+
+
+>>>>>>> e4c5159c12e88163b4dd8120e876ee097583d32f
         await prisma[type].update({
           where: { id: item.id },
           data: { is_email_sent: true },
