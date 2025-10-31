@@ -1,11 +1,15 @@
+import admin from "firebase-admin";
 const { messaging } = require("./configs/firebaseAdmin");
 const env = require("dotenv");
 const path = require("path");
+const messaging = admin.messaging();
 const cron = require("node-cron");
 const app = require("./app");
+const cors = require("cors");
 const { logger } = require("./configs/logger");
 const { createAndSendEmail } = require("./configs/email");
 const { prisma } = require("./configs/prisma");
+const pushRoutes = require("./routes/push");  // Importa as rotas de push
 const {
   emailTemplateForReminder,
 } = require("./email/emailTemplateForReminder");
@@ -28,6 +32,17 @@ const envFile =
 env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "192.168.18.71";
+
+// Configuração do CORS
+const corsOptions = {
+  origin: "http://localhost:3000", // Permitir requisições de localhost:3000
+  methods: ["GET", "POST", "PUT", "DELETE"], // Métodos permitidos
+  allowedHeaders: ["Content-Type", "Authorization"], // Cabeçalhos permitidos
+};
+
+app.use(cors(corsOptions)); // Habilitar CORS para o backend
+
+app.use("/api/push", pushRoutes);  // Registra a rota de push no caminho '/api/push'
 
 app.listen(PORT, HOST, () => {
   logger.info(`🚀 Server is listening at http://${HOST}:${PORT}
@@ -139,22 +154,20 @@ cron.schedule("*/1 * * * *", async () => {
 
   const registrationTokens = tokens.map(t => t.token).filter(Boolean);
   if (registrationTokens.length) {
-    const payload = {
+    const message = {
+      tokens: registrationTokens,
       notification: {
         title: `${title || "Reminder"}`,
         body: `${description || item.message || "You have a reminder."}`,
       },
       data: {
         type: type,
-        id: item.id,
+        id: String(item.id),
       },
     };
 
-    // sendMulticast para enviar para múltiplos tokens
-    const response = await messaging.sendMulticast({
-      ...payload,
-      tokens: registrationTokens,
-    });
+    // ✅ Novo método compatível com firebase-admin >= 13.0.0
+    const response = await messaging.sendEachForMulticast(message);
 
     // opcional: limpar tokens inválidos
     if (response.failureCount > 0) {
@@ -165,7 +178,9 @@ cron.schedule("*/1 * * * *", async () => {
         }
       });
       if (failedTokens.length) {
-        await prisma.push_token.deleteMany({ where: { token: { in: failedTokens } }});
+        await prisma.push_token.deleteMany({
+          where: { token: { in: failedTokens } },
+        });
       }
     }
   }

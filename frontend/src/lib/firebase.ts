@@ -2,7 +2,6 @@
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage, Messaging } from "firebase/messaging";
 
-// ✅ Configuração Firebase (use suas variáveis de ambiente do .env.local)
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -10,24 +9,19 @@ const firebaseConfig = {
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: "G-3QLVFTGVX7", // opcional
+  measurementId: "G-3QLVFTGVX7",
 };
 
 let messagingInstance: Messaging | null = null;
 
-/**
- * Inicializa Firebase e retorna instância de messaging
- */
 export function initFirebase(): Messaging {
   const app = initializeApp(firebaseConfig);
   messagingInstance = getMessaging(app);
   return messagingInstance;
 }
 
-/**
- * Solicita permissão do navegador e registra token no backend
- */
 export async function requestPermissionAndRegisterToken(authToken: string) {
+  console.log("🔍 Iniciando registro de token FCM...");
   try {
     if (!messagingInstance) initFirebase();
 
@@ -39,11 +33,16 @@ export async function requestPermissionAndRegisterToken(authToken: string) {
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
     const token = await getToken(messagingInstance!, { vapidKey });
 
+    console.log("✅ Token gerado:", token);
+
     if (!token) return { success: false, message: "No token received" };
 
     // Envia token ao backend
+    const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    console.log("Backend URL:", backendUrl);
+
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/client/push/register`,
+      `${backendUrl}/client/push/register`,
       {
         method: "POST",
         headers: {
@@ -55,12 +54,14 @@ export async function requestPermissionAndRegisterToken(authToken: string) {
     );
 
     if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Erro ao registrar no backend:", errorText);
       return { success: false, message: "Failed to register on backend" };
     }
 
+    console.log("✅ Token enviado ao backend com sucesso");
     return { success: true, token };
   } catch (err: unknown) {
-    // ✅ Corrige o erro de tipagem do `err`
     if (err instanceof Error) {
       console.error("requestPermission error", err.message);
       return { success: false, message: err.message };
@@ -71,12 +72,7 @@ export async function requestPermissionAndRegisterToken(authToken: string) {
   }
 }
 
-/**
- * Listener para mensagens recebidas em foreground (app aberto)
- */
-export function onForegroundMessage(
-  callback: (payload: any) => void // ✅ tipagem explícita do parâmetro
-) {
+export function onForegroundMessage(callback: (payload: any) => void) {
   if (!messagingInstance) initFirebase();
 
   onMessage(messagingInstance!, (payload) => {

@@ -1,5 +1,5 @@
-const admin = require("../../../configs/firebaseAdmin");
 const { prisma } = require("../../../configs/prisma");
+const admin = require("../../../configs/firebaseAdmin");
 
 // Registrar token
 exports.registerPushToken = async (req, res) => {

@@ -23,6 +23,7 @@ import Image from "next/image";
 import { SpeechSettings } from "@/components/speech-settings";
 import { defaultSpeechConfig, type SpeechConfig } from "@/lib/speech-utils";
 import usePusher from "@/lib/pusher";
+import { requestPermissionAndRegisterToken } from "@/firebase";
 
 interface Message {
   id: string;
@@ -42,6 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   conversation,
   sidebarData,
 }) => {
+   
   const [inputValue, setInputValue] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -139,9 +141,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     alert(`${title}: ${message}`);
   };
 
-   const handleSendMessage = async () => {
+    const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-    const userMessage: Message = {
+
+    // Adiciona a mensagem do usuário ao estado
+    const userMessage = {
       id: Date.now().toString(),
       message: inputValue.trim(),
       sender: "USER",
@@ -151,22 +155,30 @@ const Dashboard: React.FC<DashboardProps> = ({
     setInputValue("");
     setIsLoading(true);
     setIsTyping(true);
+
     try {
       const payload = {
-        conversationId: conversation_id || "",
         message: userMessage.message,
       };
       const response = await API.createMessage(payload);
+
+      // Adiciona a resposta do mentor (AI)
       setTimeout(() => {
-        const aiMessage: Message = {
+        const aiMessage = {
           id: (Date.now() + 1).toString(),
-          message: formatMessage(response.data.reply || "I'm here to help!"), // Formatando a resposta
+          message: response.data.reply || "I'm here to help!",
           sender: "mentor",
           timestamp: new Date(),
         };
         setMessages((prev) => [...prev, aiMessage]);
         setIsTyping(false);
       }, 1000);
+
+      // Agora que o usuário enviou a mensagem, solicite permissão para notificações
+      if (user?.id) {
+        await requestPermissionAndRegisterToken(user.id);
+      }
+      
       router.refresh();
     } catch (error) {
       setIsTyping(false);
@@ -174,6 +186,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       setIsLoading(false);
     }
   };
+
 
   const startRecording = async () => {
     try {

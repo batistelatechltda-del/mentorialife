@@ -30,14 +30,20 @@ const Welcome: React.FC = () => {
     return () => {};
   }, []);
 
-  const handleNewUser = (e: React.MouseEvent) => {
+  const handleNewUser = async (e: React.MouseEvent) => {
     e.preventDefault();
     localStorage.setItem("authMode", "new");
+
+    // 🔥 Inicializa Firebase mas não solicita permissão ainda
+    initFirebase();
     setAuthMode("register");
   };
 
-  const handleExistingUser = (e: React.MouseEvent) => {
+  const handleExistingUser = async (e: React.MouseEvent) => {
     e.preventDefault();
+
+    // 🔥 Inicializa Firebase mas não solicita permissão ainda
+    initFirebase();
     setAuthMode("login");
   };
 
@@ -47,19 +53,18 @@ const Welcome: React.FC = () => {
       // Inicializa Firebase
       initFirebase();
 
-      // Recupera ID do usuário salvo após o login
+      // Recupera o ID do usuário após o login
       const userId = localStorage.getItem("userId");
       if (!userId) {
         console.warn("Nenhum userId encontrado no localStorage — verifique AuthForm");
         return;
       }
 
-      // Solicita permissão e gera novo token
+      // Agora, solicita permissão para notificações e registra o token
       const newToken = await requestPermissionAndRegisterToken(userId);
 
       console.log("Novo token FCM:", newToken);
       alert("🔔 Notificações ativas com sucesso!");
-
     } catch (err) {
       console.error("Erro ao registrar notificação:", err);
     }
