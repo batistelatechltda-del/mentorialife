@@ -10,10 +10,7 @@ const { logger } = require("./configs/logger");
 const { createAndSendEmail } = require("./configs/email");
 const { prisma } = require("./configs/prisma");
 const pushRoutes = require("./routes/push");  // Importa as rotas de push
-const {
-  emailTemplateForReminder,
-} = require("./email/emailTemplateForReminder");
-
+const { emailTemplateForReminder } = require("./email/emailTemplateForReminder");
 
 
 const sendSMS = require("./configs/twilio");
@@ -33,6 +30,7 @@ env.config({ path: path.resolve(__dirname, envFile), override: true });
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "192.168.18.71";
 
+
 // Configuração do CORS
 const corsOptions = {
   origin: "http://localhost:3000", // Permitir requisições de localhost:3000
@@ -50,7 +48,6 @@ app.listen(PORT, HOST, () => {
   ⚙️ Loaded Config from: ${envFile}
   🧪 TEST_VAR: ${process.env.TEST_VAR}`);
 });
-
 
 cron.schedule("*/1 * * * *", async () => {
   const currentDate = dayjs().toISOString();
@@ -108,7 +105,6 @@ cron.schedule("*/1 * * * *", async () => {
         }
       }
 
-
       const html = emailTemplateForReminder({ username, title, description });
 
       try {
@@ -136,7 +132,6 @@ cron.schedule("*/1 * * * *", async () => {
             },
           });
 
-          
           await pusher.trigger(`user-${userId}`, "notification", {
             id: createdMessage.id,
             message: createdMessage.message,
@@ -146,48 +141,50 @@ cron.schedule("*/1 * * * *", async () => {
         }
 
         try {
-  // buscar tokens do usuário
-  const tokens = await prisma.push_token.findMany({
-    where: { user_id: item.user.id },
-    select: { token: true },
-  });
+          // Buscar tokens do usuário
+          const tokens = await prisma.push_token.findMany({
+            where: { user_id: item.user.id },
+            select: { token: true },
+          });
 
-  const registrationTokens = tokens.map(t => t.token).filter(Boolean);
-  if (registrationTokens.length) {
-    const message = {
-      tokens: registrationTokens,
-      notification: {
-        title: `${title || "Reminder"}`,
-        body: `${description || item.message || "You have a reminder."}`,
-      },
-      data: {
-        type: type,
-        id: String(item.id),
-      },
-    };
 
     // ✅ Novo método compatível com firebase-admin >= 13.0.0
-    const response = await messaging.sendEachForMulticast(message);
+          const registrationTokens = tokens.map(t => t.token).filter(Boolean);
+          if (registrationTokens.length) {
+            const message = {
+              tokens: registrationTokens,
+              notification: {
+                title: `${title || "Reminder"}`,
+                body: `${description || item.message || "You have a reminder."}`,
+              },
+              data: {
+                type: type,
+                id: String(item.id),
+              },
+            };
 
-    // opcional: limpar tokens inválidos
-    if (response.failureCount > 0) {
-      const failedTokens = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          failedTokens.push(registrationTokens[idx]);
+            // Usando o sendMulticast para enviar a notificação para múltiplos tokens (Versão < 13.7.0)
+            const response = await messaging.sendMulticast(message);
+
+
+            // Opcional: limpar tokens inválidos
+            if (response.failureCount > 0) {
+              const failedTokens = [];
+              response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                  failedTokens.push(registrationTokens[idx]);
+                }
+              });
+              if (failedTokens.length) {
+                await prisma.push_token.deleteMany({
+                  where: { token: { in: failedTokens } },
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error("FCM send error:", err);
         }
-      });
-      if (failedTokens.length) {
-        await prisma.push_token.deleteMany({
-          where: { token: { in: failedTokens } },
-        });
-      }
-    }
-  }
-} catch (err) {
-  console.error("FCM send error:", err);
-}
-
 
         await prisma[type].update({
           where: { id: item.id },
@@ -303,8 +300,6 @@ cron.schedule("*/30 * * * *", async () => {
     })
   );
 });
-
-
 
 app.get("/", async (req, res) => {
   res.send("server is running");

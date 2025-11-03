@@ -1,4 +1,3 @@
-// src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
@@ -40,7 +39,7 @@ export const requestPermissionAndRegisterToken = async (userId) => {
       return null;
     }
 
-    // 🔹 Aguarda o Service Worker registrar antes de continuar
+    // Aguarda o Service Worker registrar antes de continuar
     const registration = await navigator.serviceWorker.ready;
 
     const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
@@ -49,8 +48,9 @@ export const requestPermissionAndRegisterToken = async (userId) => {
     console.log("✅ Token gerado:", token);
 
     if (token) {
+      // Usando a URL configurada no .env.local
       const backendUrl = process.env.NEXT_PUBLIC_BASE_URL_SERVER;
-      console.log("Backend URL:", backendUrl);
+      console.log("Backend URL:", backendUrl); // Verifique a URL no console
 
       await fetch(`${backendUrl}/api/push/register`, {
         method: "POST",
@@ -65,7 +65,6 @@ export const requestPermissionAndRegisterToken = async (userId) => {
     return null;
   }
 };
-
 
 // Recebe mensagens em foreground
 export const listenForForegroundMessages = () => {
